@@ -1,0 +1,2027 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>無理数独</title>
+    <meta property="og:title" content="無理数独">
+    <meta property="og:description" content="√・log・sin/cos の全18ステージ収録！巨大な数学記号を外して完全有理化・整数化を目指す新感覚数学パズル">
+    <meta name="twitter:title" content="無理数独">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .math-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* 巨大記号のアニメーションと発光エフェクト */
+        .radical-stroke {
+            transition: stroke 0.5s ease, filter 0.5s ease;
+        }
+        .board-solved .radical-stroke {
+            stroke: #34d399;
+            filter: drop-shadow(0 0 12px rgba(52, 211, 153, 0.7));
+        }
+        .symbol-glow {
+            transition: color 0.5s ease, filter 0.5s ease;
+        }
+        .board-solved .symbol-glow {
+            color: #34d399;
+            filter: drop-shadow(0 0 14px rgba(52, 211, 153, 0.65));
+        }
+        .log-bracket {
+            transition: border-color 0.5s ease, filter 0.5s ease;
+        }
+        .board-solved .log-bracket {
+            border-color: #34d399;
+            filter: drop-shadow(0 0 10px rgba(52, 211, 153, 0.55));
+        }
+        .cell-btn {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            70% { transform: scale(1.08); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.25s ease-out forwards;
+        }
+        .sudoku-grid {
+            display: grid;
+        }
+        .sudoku-grid-4 {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .sudoku-grid-6 {
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+        /* クリア済みステージ・全制覇ワールド用の光沢（シマー）エフェクト */
+        @keyframes glossyShine {
+            0% { transform: translateX(-140%) skewX(-20deg); }
+            55%, 100% { transform: translateX(240%) skewX(-20deg); }
+        }
+        .glossy-card {
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 22px rgba(16, 185, 129, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+        .glossy-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 45%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+            animation: glossyShine 3.6s infinite ease-in-out;
+            pointer-events: none;
+        }
+        .glossy-stage-btn {
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+        .glossy-stage-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+            animation: glossyShine 3s infinite ease-in-out;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body id="appBody" class="min-h-screen flex flex-col items-center justify-between p-4 sm:p-6 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 transition-colors duration-500">
+
+    <!-- ==================== 1. トップ画面（ワールド選択 ＋ ルール説明） ==================== -->
+    <div id="homeScreen" class="w-full max-w-3xl my-auto flex flex-col items-center py-4">
+        <div class="text-center mb-6 sm:mb-8">
+            <span class="inline-block px-3 py-1 text-xs font-bold tracking-widest uppercase bg-slate-800/90 text-slate-300 border border-slate-700 rounded-full mb-3">
+                IRRATIONAL SUDOKU · 全18ステージ収録
+            </span>
+            <h1 class="text-4xl sm:text-5xl font-black tracking-tight text-white mb-3">
+                無理数独
+            </h1>
+            <p class="text-sm sm:text-base text-slate-300 max-w-xl mx-auto leading-relaxed">
+                盤面全体を覆う巨大な数学記号（<span class="text-indigo-300 math-font font-bold">√</span>・<span class="text-cyan-300 math-font font-bold">log</span>・<span class="text-amber-300 math-font font-bold">sin/cos</span>）を外せ！<br class="hidden sm:inline">
+                行・列・ブロックすべての和の計算結果を<strong class="text-emerald-300">有理数（整数・分数）</strong>にする新感覚パズル。
+            </p>
+        </div>
+
+        <!-- 共通の基本ルール（コンパクト版） -->
+        <div class="w-full bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 mb-6 shadow-xl">
+            <h2 class="text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                基本ルール（全ワールド共通）
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm text-slate-300">
+                <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-700/50">
+                    <div class="font-bold text-white mb-1">1. 重複禁止</div>
+                    <p class="text-xs text-slate-400 leading-relaxed">同じ行・同じ列・同じ太枠ブロック内に同じ数字は入れられません。</p>
+                </div>
+                <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-700/50">
+                    <div class="font-bold text-white mb-1">2. 和を変換</div>
+                    <p class="text-xs text-slate-400 leading-relaxed">各行・各列・各ブロックの合計値に対して、左側の数学記号が作用します。</p>
+                </div>
+                <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-700/50">
+                    <div class="font-bold text-emerald-300 mb-1">3. すべて有理数でクリア</div>
+                    <p class="text-xs text-slate-400 leading-relaxed">全ライン・全ブロックの値がきれいな有理数になると記号が外れてクリア！</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3つのワールド選択カード -->
+        <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <!-- カード1：√ ステージ -->
+            <button type="button" data-world="root" class="world-card group text-left bg-slate-900/90 hover:bg-slate-800/95 border-2 border-indigo-500/40 hover:border-indigo-400 rounded-3xl p-5 shadow-xl transition-all duration-200 hover:-translate-y-1 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <span data-world-badge="root" class="px-2.5 py-0.5 text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">WORLD 1 · 0/6 クリア</span>
+                        <span class="text-3xl font-bold text-indigo-400 math-font group-hover:scale-110 transition-transform">√</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2">無理数独　√</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                        盤面全体を覆う巨大な<strong class="text-indigo-300">ルート記号</strong>を外そう！
+                    </p>
+                    <div class="bg-slate-950/70 rounded-xl p-2.5 text-[11px] text-slate-300 space-y-1 border border-slate-800">
+                        <div>・使用数字：<span class="text-white font-bold math-font">1〜9</span></div>
+                        <div>・条件：和を<span class="text-emerald-300 font-bold">平方数</span>にする</div>
+                        <div class="text-slate-400 math-font text-[10px]">例：√16 = 4, √25 = 5, √36 = 6</div>
+                    </div>
+                </div>
+                <div data-world-footer="root" class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-bold text-indigo-300 group-hover:text-indigo-200">
+                    <span>4×4 / 6×6（各3難易度）</span>
+                    <span>プレイ →</span>
+                </div>
+            </button>
+
+            <!-- カード2：log ステージ -->
+            <button type="button" data-world="log" class="world-card group text-left bg-slate-900/90 hover:bg-slate-800/95 border-2 border-cyan-500/40 hover:border-cyan-400 rounded-3xl p-5 shadow-xl transition-all duration-200 hover:-translate-y-1 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <span data-world-badge="log" class="px-2.5 py-0.5 text-[11px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-full">WORLD 2 · 0/6 クリア</span>
+                        <span class="text-2xl font-bold text-cyan-400 math-font group-hover:scale-110 transition-transform">log<sub class="text-sm">a</sub></span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2">無理数独　log</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                        数独の和を真数として、<strong class="text-cyan-300">対数（底2・底3）</strong>を整数にしよう！
+                    </p>
+                    <div class="bg-slate-950/70 rounded-xl p-2.5 text-[11px] text-slate-300 space-y-1 border border-slate-800">
+                        <div>・使用数字：<span class="text-white font-bold math-font">1〜9 / 1〜12</span></div>
+                        <div>・条件：和を<span class="text-emerald-300 font-bold">底の累乗</span>にする</div>
+                        <div class="text-slate-400 math-font text-[10px]">例：log₂16=4, log₂32=5, log₃27=3</div>
+                    </div>
+                </div>
+                <div data-world-footer="log" class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-bold text-cyan-300 group-hover:text-cyan-200">
+                    <span>底2 / 底3（各3難易度）</span>
+                    <span>プレイ →</span>
+                </div>
+            </button>
+
+            <!-- カード3：三角関数 ステージ -->
+            <button type="button" data-world="trig" class="world-card group text-left bg-slate-900/90 hover:bg-slate-800/95 border-2 border-amber-500/40 hover:border-amber-400 rounded-3xl p-5 shadow-xl transition-all duration-200 hover:-translate-y-1 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <span data-world-badge="trig" class="px-2.5 py-0.5 text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full">WORLD 3 · 0/6 クリア</span>
+                        <span class="text-2xl font-bold text-amber-400 math-font group-hover:scale-110 transition-transform">sin/cos°</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2">無理数独　sin/cos</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                        1マス＝<strong class="text-amber-300">5°刻み</strong>の角度の和を作り、<strong class="text-amber-300">sin / cos</strong> を有理数に！
+                    </p>
+                    <div class="bg-slate-950/70 rounded-xl p-2.5 text-[11px] text-slate-300 space-y-1 border border-slate-800">
+                        <div>・使用数字：<span class="text-white font-bold math-font">1〜9</span>（5°〜45°）</div>
+                        <div>・条件：<span class="text-emerald-300 font-bold">有名角</span>にして有理数化</div>
+                        <div class="text-slate-400 math-font text-[10px]">例：sin90°=1, cos120°=-1/2</div>
+                    </div>
+                </div>
+                <div data-world-footer="trig" class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-bold text-amber-300 group-hover:text-amber-200">
+                    <span>4×4 / 6×6（各3難易度）</span>
+                    <span>プレイ →</span>
+                </div>
+            </button>
+
+        </div>
+    </div>
+
+    <!-- ==================== 2. ゲームプレイ画面 ==================== -->
+    <div id="gameScreen" class="hidden w-full max-w-2xl lg:max-w-5xl flex-1 flex flex-col justify-between my-auto">
+        
+        <!-- ヘッダー（全画面幅） -->
+        <header class="w-full flex items-center justify-between mb-2 lg:mb-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <button id="backToHomeBtn" type="button" class="px-3 py-1 text-xs font-bold bg-rose-600/90 hover:bg-rose-500 text-white border border-rose-400/60 rounded-full shadow-md shadow-rose-950/50 transition flex items-center gap-1">
+                        <span>← ワールド選択</span>
+                    </button>
+                    <span id="stageBadge" class="px-2 py-0.5 text-xs font-bold tracking-wider uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">4×4 · イージー</span>
+                </div>
+                <h1 id="gameTitleHeading" class="text-2xl sm:text-3xl font-bold tracking-tight text-white mt-1 flex items-baseline">
+                    <!-- JSでワールドに応じたタイトルを描画 -->
+                </h1>
+            </div>
+            <button id="rulesToggleBtn" type="button" class="px-3 py-2 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                <span id="rulesToggleLabel">ルール説明</span>
+                <svg id="rulesIconSvg" class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </button>
+        </header>
+
+        <!-- ルール説明パネル（デフォルトは閉じた状態） -->
+        <div id="rulesPanel" class="hidden w-full bg-slate-800/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-4 mb-3 lg:mb-4 text-xs sm:text-sm text-slate-300 shadow-xl">
+            <div class="flex items-start justify-between gap-2 mb-2">
+                <h2 id="rulesTitle" class="font-bold text-white text-sm sm:text-base flex items-center gap-1.5"></h2>
+                <button id="closeRulesBtn" type="button" class="text-slate-400 hover:text-white p-1">✕</button>
+            </div>
+            <ul id="rulesList" class="space-y-1.5 list-disc list-inside text-slate-300 leading-relaxed"></ul>
+        </div>
+
+        <!-- 警告・エラー通知バー -->
+        <div id="statusBanner" class="hidden w-full mb-3 px-4 py-2 rounded-xl bg-rose-950/70 border border-rose-500/40 items-center justify-center text-xs sm:text-sm">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-rose-400 animate-ping" id="statusDot"></span>
+                <span id="statusText" class="text-rose-200 font-medium"></span>
+            </div>
+        </div>
+
+        <!-- スマホ：縦長（1カラム） / パソコン（lg以上）：横長（左：盤面エリア、右：操作・ステージパネル） -->
+        <div class="w-full flex-1 flex flex-col lg:flex-row items-center lg:items-stretch justify-between gap-3 lg:gap-6 my-auto">
+
+            <!-- スマホ用 ステージ選択バー（PCでは右側パネル内に表示） -->
+            <nav aria-label="ステージ選択（モバイル）" class="w-full lg:hidden bg-slate-900/75 border border-slate-700/70 rounded-2xl p-2 shadow-lg">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div class="flex items-center gap-1.5 bg-slate-800/60 p-1.5 rounded-xl border border-slate-700/60">
+                        <span id="groupLabelA" class="px-2 text-xs font-bold text-indigo-300 math-font shrink-0">4×4</span>
+                        <div id="stageGroupA" class="flex-1 grid grid-cols-3 gap-1"></div>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-slate-800/60 p-1.5 rounded-xl border border-slate-700/60">
+                        <span id="groupLabelB" class="px-2 text-xs font-bold text-purple-300 math-font shrink-0">6×6</span>
+                        <div id="stageGroupB" class="flex-1 grid grid-cols-3 gap-1"></div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- 左カラム：メインゲームエリア（ブロックメモ ＋ 巨大記号 ＋ 数独盤面） -->
+            <main class="w-full lg:flex-1 flex flex-col items-center justify-center">
+                <div class="w-full flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+                    
+                    <!-- 左側エリア：ブロックメモパネル -->
+                    <div id="blockPanel" class="w-full sm:w-32 shrink-0 bg-slate-800/60 border border-slate-700/70 rounded-2xl p-2.5 flex flex-col justify-between self-center shadow-lg">
+                        <div id="blockPanelTitle" class="text-[11px] text-slate-300 font-bold text-center pb-1.5 border-b border-slate-700/60">2×2ブロック (4個)</div>
+                        <div id="blockBadges" class="grid grid-cols-2 grid-rows-2 gap-1.5 pt-2 sm:aspect-square"></div>
+                        <div id="blockMemoHint" class="text-[10px] text-slate-400 text-center mt-2 leading-tight"></div>
+                    </div>
+
+                    <!-- 右側エリア：ワールドごとに見た目が変わる巨大記号 ＋ 盤面ラッパー -->
+                    <div id="boardWrapper" class="relative w-full max-w-[495px] flex items-stretch justify-center">
+                        
+                        <!-- [A] √ ワールド専用：盤面全体を囲むSVGルート記号 -->
+                        <svg id="rootSvgOverlay" class="hidden absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible" viewBox="0 0 430 430" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="radicalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#818cf8" />
+                                    <stop offset="50%" stop-color="#c084fc" />
+                                    <stop offset="100%" stop-color="#38bdf8" />
+                                </linearGradient>
+                            </defs>
+                            <path class="radical-stroke"
+                                  d="M 4 235 L 15 235 L 26 385 L 36 12 L 424 12 L 424 26"
+                                  fill="none"
+                                  stroke="url(#radicalGrad)"
+                                  stroke-width="6"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round" />
+                        </svg>
+
+                        <!-- [B] log / trig ワールド専用：盤面左側の巨大記号 -->
+                        <div id="leftSymbolBox" class="hidden flex-col items-center justify-center shrink-0 select-none pr-1 sm:pr-2">
+                            <div id="leftSymbolText" class="symbol-glow math-font font-bold flex items-baseline leading-none"></div>
+                            <span id="leftSymbolSub" class="text-[9px] sm:text-[10px] text-slate-400 mt-1.5 tracking-wider"></span>
+                        </div>
+
+                        <!-- [C] log ワールド専用：左大括弧 ( -->
+                        <div id="logLeftBracket" class="hidden log-bracket w-2.5 sm:w-3.5 border-l-4 border-t-4 border-b-4 border-cyan-400/80 rounded-l-2xl shrink-0 my-1 mr-1"></div>
+
+                        <!-- 盤面本体（数独グリッド ＋ 行・列ステータス） -->
+                        <div id="gridAndLineBadges" class="relative z-20 flex-1 flex flex-col gap-1.5 min-w-0">
+                            <div class="flex items-stretch gap-1.5">
+                                <div id="sudokuGrid" class="sudoku-grid sudoku-grid-4 flex-1 aspect-square bg-slate-900/95 rounded-2xl border-2 border-indigo-400/50 shadow-2xl overflow-hidden relative"></div>
+                                <div id="rowBadges" class="w-12 sm:w-14 flex flex-col justify-between gap-1"></div>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <div id="colBadges" class="flex-1 grid grid-cols-4 gap-1"></div>
+                                <div class="w-12 sm:w-14 flex items-center justify-center">
+                                    <span id="lineMemoHint" class="text-[9px] text-slate-400 math-font text-center leading-tight"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- [C'] log ワールド専用：右大括弧 ) -->
+                        <div id="logRightBracket" class="hidden log-bracket w-2.5 sm:w-3.5 border-r-4 border-t-4 border-b-4 border-cyan-400/80 rounded-r-2xl shrink-0 my-1 ml-1"></div>
+
+                        <!-- [D] trig ワールド専用：右上の巨大な ° 記号 -->
+                        <div id="trigDegreeBox" class="hidden flex-col items-start justify-start shrink-0 select-none pt-0.5 sm:pt-1 pl-1">
+                            <span class="symbol-glow text-amber-400 math-font font-bold text-4xl sm:text-6xl leading-none">°</span>
+                        </div>
+
+                    </div>
+                </div>
+            </main>
+
+            <!-- 右カラム（PCでは右サイドパネル / スマホでは下部操作エリア） -->
+            <footer class="w-full lg:w-80 xl:w-96 shrink-0 flex flex-col justify-center gap-2.5 lg:bg-slate-900/65 lg:border lg:border-slate-700/70 lg:rounded-3xl lg:p-4 lg:shadow-xl">
+                
+                <!-- PC用 ステージ選択バー（横長レイアウト時は右パネル上部に配置） -->
+                <nav aria-label="ステージ選択（デスクトップ）" class="hidden lg:block w-full bg-slate-950/60 border border-slate-700/70 rounded-2xl p-2 space-y-1.5">
+                    <div class="text-[11px] font-bold text-slate-400 px-1">ステージ選択</div>
+                    <div class="flex items-center gap-1.5 bg-slate-800/60 p-1.5 rounded-xl border border-slate-700/60">
+                        <span id="groupLabelADesktop" class="px-2 text-xs font-bold text-indigo-300 math-font shrink-0">4×4</span>
+                        <div id="stageGroupADesktop" class="flex-1 grid grid-cols-3 gap-1"></div>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-slate-800/60 p-1.5 rounded-xl border border-slate-700/60">
+                        <span id="groupLabelBDesktop" class="px-2 text-xs font-bold text-purple-300 math-font shrink-0">6×6</span>
+                        <div id="stageGroupBDesktop" class="flex-1 grid grid-cols-3 gap-1"></div>
+                    </div>
+                </nav>
+
+                <!-- 入力モード切替バー -->
+                <div class="flex items-center justify-between gap-2 bg-slate-900/80 p-1.5 rounded-xl border border-slate-700/80">
+                    <button id="modeNormalBtn" type="button" class="flex-1 py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow">
+                        <span>✏️ 通常入力</span>
+                    </button>
+                    <button id="modeMemoBtn" type="button" class="flex-1 py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white">
+                        <span>📝 候補メモ</span>
+                        <span class="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 math-font border border-slate-700">M / Space</span>
+                    </button>
+                </div>
+
+                <!-- 数字ボタン（ワールド・ステージに応じて 1〜9 / 1〜12 / 角度表示付き を自動切替） -->
+                <div id="numPadGrid" class="grid grid-cols-5 gap-2"></div>
+
+                <!-- アクションボタン -->
+                <div class="flex items-center justify-between gap-2 pt-1">
+                    <button id="hintBtn" type="button" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-amber-300 text-xs sm:text-sm font-medium border border-slate-700 transition flex items-center justify-center gap-1.5">
+                        <span>💡 1マスヒント</span>
+                    </button>
+                    <button id="resetBtn" type="button" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 text-xs sm:text-sm font-medium border border-slate-700 transition flex items-center justify-center gap-1.5">
+                        <span>↺ やり直す</span>
+                    </button>
+                </div>
+            </footer>
+
+        </div>
+    </div>
+
+    <!-- クリア祝福モーダル -->
+    <div id="clearModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-emerald-400/60 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl transform transition-all">
+            <div id="clearIcon" class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-2xl text-emerald-300 math-font font-bold shadow-inner">
+                ✓
+            </div>
+            <h2 id="clearTitle" class="text-2xl font-bold text-white mb-2">ステージクリア！</h2>
+            <p id="clearDesc" class="text-sm text-slate-300 mb-5 leading-relaxed"></p>
+            <div id="clearFormula" class="bg-slate-800/80 rounded-xl p-3 mb-6 math-font text-xs text-emerald-300 space-y-1"></div>
+            <div class="space-y-2">
+                <button id="nextStageBtn" type="button" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm sm:text-base shadow-lg shadow-emerald-500/25 transition">
+                    次のステージへ進む
+                </button>
+                <button id="playAgainBtn" type="button" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs sm:text-sm border border-slate-700 transition">
+                    同じステージをもう一度遊ぶ
+                </button>
+                <button id="modalHomeBtn" type="button" class="w-full py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 text-rose-200 font-medium text-xs border border-rose-800/50 transition">
+                    ← ワールド選択に戻る
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        /**
+         * ニーヴンの定理に基づく有理数角度テーブル（1マス = 5° 刻み）
+         */
+        const RATIONAL_TRIG = {
+            sin: { 0: '0', 30: '1/2', 90: '1', 150: '1/2', 180: '0', 210: '-1/2', 270: '-1', 330: '-1/2', 360: '0' },
+            cos: { 0: '1', 60: '1/2', 90: '0', 120: '-1/2', 180: '-1', 240: '-1/2', 270: '0', 300: '1/2', 360: '1' }
+        };
+
+        /**
+         * 全3ワールド × 6ステージ = 計18ステージ定義
+         */
+        const WORLDS = {
+            root: {
+                id: 'root',
+                name: '無理数独　√',
+                accent: 'indigo',
+                groupLabelA: '4×4',
+                groupLabelB: '6×6',
+                stages: [
+                    {
+                        id: 'root-4-easy',
+                        group: 'A',
+                        size: 4,
+                        blockRows: 2,
+                        blockCols: 2,
+                        maxNum: 9,
+                        diffLabel: 'イージー',
+                        title: '√ · 4×4 イージー',
+                        validTargets: [16, 25],
+                        solution: [
+                            [1, 2, 4, 9],
+                            [4, 9, 1, 2],
+                            [2, 1, 9, 4],
+                            [9, 4, 2, 1]
+                        ],
+                        initial: [
+                            [1, 0, 4, 0],
+                            [0, 9, 0, 2],
+                            [2, 0, 9, 0],
+                            [0, 4, 0, 1]
+                        ]
+                    },
+                    {
+                        id: 'root-4-normal',
+                        group: 'A',
+                        size: 4,
+                        blockRows: 2,
+                        blockCols: 2,
+                        maxNum: 9,
+                        diffLabel: 'ノーマル',
+                        title: '√ · 4×4 ノーマル',
+                        validTargets: [16, 25],
+                        solution: [
+                            [1, 2, 8, 5],
+                            [8, 5, 1, 2],
+                            [2, 1, 5, 8],
+                            [5, 8, 2, 1]
+                        ],
+                        initial: [
+                            [1, 2, 0, 0],
+                            [0, 0, 1, 0],
+                            [0, 1, 0, 8],
+                            [5, 0, 0, 0]
+                        ]
+                    },
+                    {
+                        id: 'root-4-hard',
+                        group: 'A',
+                        size: 4,
+                        blockRows: 2,
+                        blockCols: 2,
+                        maxNum: 9,
+                        diffLabel: 'ハード',
+                        title: '√ · 4×4 ハード',
+                        validTargets: [16, 25],
+                        solution: [
+                            [3, 5, 9, 8],
+                            [9, 8, 3, 5],
+                            [5, 3, 8, 9],
+                            [8, 9, 5, 3]
+                        ],
+                        initial: [
+                            [3, 0, 9, 0],
+                            [0, 8, 0, 0],
+                            [0, 3, 0, 0],
+                            [8, 0, 0, 0]
+                        ]
+                    },
+                    {
+                        id: 'root-6-easy',
+                        group: 'B',
+                        size: 6,
+                        blockRows: 2,
+                        blockCols: 3,
+                        maxNum: 9,
+                        diffLabel: 'イージー',
+                        title: '√ · 6×6 イージー',
+                        validTargets: [25, 36],
+                        solution: [
+                            [1, 2, 3, 4, 6, 9],
+                            [4, 6, 9, 1, 2, 3],
+                            [2, 3, 4, 6, 9, 1],
+                            [6, 9, 1, 2, 3, 4],
+                            [3, 4, 6, 9, 1, 2],
+                            [9, 1, 2, 3, 4, 6]
+                        ],
+                        initial: [
+                            [1, 0, 3, 0, 6, 0],
+                            [0, 6, 0, 1, 0, 3],
+                            [2, 0, 4, 0, 9, 0],
+                            [0, 9, 0, 2, 0, 4],
+                            [3, 0, 6, 0, 1, 0],
+                            [0, 1, 0, 3, 0, 6]
+                        ]
+                    },
+                    {
+                        id: 'root-6-normal',
+                        group: 'B',
+                        size: 6,
+                        blockRows: 2,
+                        blockCols: 3,
+                        maxNum: 9,
+                        diffLabel: 'ノーマル',
+                        title: '√ · 6×6 ノーマル',
+                        validTargets: [25, 36],
+                        solution: [
+                            [1, 2, 3, 4, 6, 9],
+                            [4, 6, 9, 1, 2, 3],
+                            [2, 3, 4, 6, 9, 1],
+                            [6, 9, 1, 2, 3, 4],
+                            [3, 4, 6, 9, 1, 2],
+                            [9, 1, 2, 3, 4, 6]
+                        ],
+                        initial: [
+                            [1, 2, 0, 4, 0, 0],
+                            [0, 0, 9, 0, 2, 0],
+                            [2, 0, 0, 6, 0, 0],
+                            [0, 9, 0, 0, 3, 0],
+                            [0, 4, 0, 9, 0, 2],
+                            [9, 0, 2, 0, 0, 0]
+                        ]
+                    },
+                    {
+                        id: 'root-6-hard',
+                        group: 'B',
+                        size: 6,
+                        blockRows: 2,
+                        blockCols: 3,
+                        maxNum: 9,
+                        diffLabel: 'ハード',
+                        title: '√ · 6×6 ハード',
+                        validTargets: [25, 36],
+                        solution: [
+                            [1, 2, 4, 3, 7, 8],
+                            [3, 7, 8, 1, 2, 4],
+                            [2, 4, 3, 7, 8, 1],
+                            [7, 8, 1, 2, 4, 3],
+                            [4, 3, 7, 8, 1, 2],
+                            [8, 1, 2, 4, 3, 7]
+                        ],
+                        initial: [
+                            [1, 2, 0, 0, 0, 8],
+                            [0, 7, 0, 1, 0, 0],
+                            [0, 0, 3, 7, 0, 0],
+                            [7, 0, 0, 0, 4, 0],
+                            [0, 3, 0, 0, 0, 2],
+                            [0, 0, 2, 4, 0, 0]
+                        ]
+                    }
+                ]
+            },
+
+            log: {
+                id: 'log',
+                name: '無理数独　log',
+                accent: 'cyan',
+                groupLabelA: '底 2',
+                groupLabelB: '底 3',
+                stages: [
+                    {
+                        id: 'log-base2-easy',
+                        group: 'A',
+                        base: 2,
+                        baseSub: '₂',
+                        size: 4,
+                        blockRows: 2,
+                        blockCols: 2,
+                        maxNum: 9,
+                        diffLabel: 'イージー',
+                        subTag: '1〜9',
+                        title: 'log₂ · イージー (1〜9)',
+                        validTargets: [16],
+                        solution: [
+                            [1, 2, 5, 8],
+                            [5, 8, 1, 2],
+                            [2, 1, 8, 5],
+                            [8, 5, 2, 1]
+                        ],
+                        initial: [
+                            [1, 0, 5, 0],
+                            [0, 8, 0, 2],
+                            [2, 0, 8, 0],
+                            [0, 5, 0, 1]
+                        ]
+                    },
+                    {
+                        id: 'log-base2-normal',
+                        group: 'A',
+                        base: 2,
+                        baseSub: '₂',
+                        size: 4,
+                        blockRows: 2,
+                        blockCols: 2,
+                        maxNum: 12,
+                        diffLabel: 'ノーマル',
+                        subTag: '1〜12',
+                        title: 'log₂ · ノーマル (1〜12)',
+                        validTargets: [16, 32],
+                        solution: [
+                            [1, 5, 3, 7],
+                            [3, 7, 1, 5],
+                            [4, 9, 8, 11],
+                            [8, 11, 4, 9]
+                        ],
+                        initial: [
+                            [1, 0, 0, 7],
+                            [0, 7, 1, 0],
+                            [4, 0, 8, 0],
+                            [0, 11, 0, 0]
+                        ]
+                    },
+                    {
+                        id: 'log-base2-hard',
+                        group: 'A',
+                        base: 2,
+                        baseSub: '₂',
+                        size: 6,
+                        blockRows: 2,
+                        blockCols: 3,
+                        maxNum: 12,
+                        diffLabel: 'ハード',
+                        subTag: '1〜12',
+                        title: 'log₂ · ハード (1〜12)',
+                        validTargets: [32],
+                        solution: [
+                            [1, 2, 3, 5, 9, 12],
+                            [5, 9, 12, 1, 2, 3],
+                            [2, 3, 5, 9, 12, 1],
+                            [9, 12, 1, 2, 3, 5],
+                            [3, 5, 9, 12, 1, 2],
+                            [12, 1, 2, 3, 5, 9]
+                        ],
+                        initial: [
+                            [1, 2, 0, 0, 0, 12],
+                            [0, 9, 0, 1, 0, 0],
+                            [0, 0, 5, 9, 0, 0],
+                            [9, 0, 0, 0, 3, 0],
+                            [0, 5, 0, 0, 0, 2],
+                            [0, 0, 2, 3, 0, 0]
+                        ]
+                    },
+                    {
+                        id: 'log-base3-easy',
+                        group: 'B',
+                        base: 3,
+                        baseSub: '₃',
+                        size: 4,
+                        blockRows: 2,
+                        blockCols: 2,
+                        maxNum: 9,
+                        diffLabel: 'イージー',
+                        subTag: '1〜9',
+                        title: 'log₃ · イージー (1〜9)',
+                        validTargets: [27],
+                        solution: [
+                            [4, 6, 8, 9],
+                            [8, 9, 4, 6],
+                            [6, 4, 9, 8],
+                            [9, 8, 6, 4]
+                        ],
+                        initial: [
+                            [4, 0, 8, 0],
+                            [0, 9, 0, 6],
+                            [6, 0, 9, 0],
+                            [0, 8, 0, 4]
+                        ]
+                    },
+                    {
+                        id: 'log-base3-normal',
+                        group: 'B',
+                        base: 3,
+                        baseSub: '₃',
+                        size: 6,
+                        blockRows: 2,
+                        blockCols: 3,
+                        maxNum: 12,
+                        diffLabel: 'ノーマル',
+                        subTag: '1〜12',
+                        title: 'log₃ · ノーマル (1〜12)',
+                        validTargets: [27],
+                        solution: [
+                            [1, 2, 3, 4, 6, 11],
+                            [4, 6, 11, 1, 2, 3],
+                            [2, 3, 4, 6, 11, 1],
+                            [6, 11, 1, 2, 3, 4],
+                            [3, 4, 6, 11, 1, 2],
+                            [11, 1, 2, 3, 4, 6]
+                        ],
+                        initial: [
+                            [1, 2, 0, 4, 0, 0],
+                            [0, 0, 11, 0, 2, 0],
+                            [2, 0, 0, 6, 0, 0],
+                            [0, 11, 0, 0, 3, 0],
+                            [0, 4, 0, 11, 0, 2],
+                            [11, 0, 2, 0, 0, 0]
+                        ]
+                    },
+                    {
+                        id: 'log-base3-hard',
+                        group: 'B',
+                        base: 3,
+                        baseSub: '₃',
+                        size: 6,
+                        blockRows: 2,
+                        blockCols: 3,
+                        maxNum: 12,
+                        diffLabel: 'ハード',
+                        subTag: '1〜12',
+                        title: 'log₃ · ハード (1〜12)',
+                        validTargets: [27],
+                        solution: [
+                            [1, 2, 3, 4, 5, 12],
+                            [4, 5, 12, 1, 2, 3],
+                            [2, 3, 4, 5, 12, 1],
+                            [5, 12, 1, 2, 3, 4],
+                            [3, 4, 5, 12, 1, 2],
+                            [12, 1, 2, 3, 4, 5]
+                        ],
+                        initial: [
+                            [1, 2, 0, 0, 0, 12],
+                            [0, 5, 0, 1, 0, 0],
+                            [0, 0, 4, 5, 0, 0],
+                            [5, 0, 0, 0, 3, 0],
+                            [0, 4, 0, 0, 0, 2],
+                            [0, 0, 2, 3, 0, 0]
+                        ]
+                    }
+                ]
+            },
+
+            trig: {
+                id: 'trig',
+                name: '無理数独　sin/cos',
+                accent: 'amber',
+                groupLabelA: '4×4',
+                groupLabelB: '6×6',
+                stages: [
+                    {
+                        id: 'trig-4-easy',
+                        group: 'A',
+                        func: 'sin',
+                        size: 4,
+                        blockRows: 2,
+                        blockCols: 2,
+                        maxNum: 9,
+                        diffLabel: 'イージー',
+                        subTag: 'sin',
+                        title: '4×4 · イージー (sin)',
+                        validTargets: [90, 150],
+                        solution: [
+                            [1, 3, 6, 8],
+                            [6, 8, 1, 3],
+                            [3, 1, 8, 6],
+                            [8, 6, 3, 1]
+                        ],
+                        initial: [
+                            [1, 0, 6, 0],
+                            [0, 8, 0, 3],
+                            [3, 0, 8, 0],
+                            [0, 6, 0, 1]
+                        ]
+                    },
+                    {
+                        id: 'trig-4-normal',
+                        group: 'A',
+                        func: 'cos',
+                        size: 4,
+                        blockRows: 2,
+                        blockCols: 2,
+                        maxNum: 9,
+                        diffLabel: 'ノーマル',
+                        subTag: 'cos',
+                        title: '4×4 · ノーマル (cos)',
+                        validTargets: [60, 90, 120],
+                        solution: [
+                            [1, 2, 3, 6],
+                            [3, 6, 1, 2],
+                            [4, 5, 7, 8],
+                            [7, 8, 4, 5]
+                        ],
+                        initial: [
+                            [1, 2, 0, 0],
+                            [0, 6, 1, 0],
+                            [4, 0, 0, 8],
+                            [0, 8, 4, 0]
+                        ]
+                    },
+                    {
+                        id: 'trig-4-hard',
+                        group: 'A',
+                        func: 'cos',
+                        size: 4,
+                        blockRows: 2,
+                        blockCols: 2,
+                        maxNum: 9,
+                        diffLabel: 'ハード',
+                        subTag: 'cos',
+                        title: '4×4 · ハード (cos)',
+                        validTargets: [60, 90, 120],
+                        solution: [
+                            [1, 2, 6, 9],
+                            [6, 9, 1, 2],
+                            [2, 1, 9, 6],
+                            [9, 6, 2, 1]
+                        ],
+                        initial: [
+                            [1, 0, 6, 0],
+                            [0, 9, 0, 0],
+                            [0, 1, 0, 0],
+                            [9, 0, 0, 0]
+                        ]
+                    },
+                    {
+                        id: 'trig-6-easy',
+                        group: 'B',
+                        func: 'cos',
+                        size: 6,
+                        blockRows: 2,
+                        blockCols: 3,
+                        maxNum: 9,
+                        diffLabel: 'イージー',
+                        subTag: 'cos',
+                        title: '6×6 · イージー (cos)',
+                        validTargets: [120, 180],
+                        solution: [
+                            [1, 2, 3, 4, 5, 9],
+                            [4, 5, 9, 1, 2, 3],
+                            [2, 3, 4, 5, 9, 1],
+                            [5, 9, 1, 2, 3, 4],
+                            [3, 4, 5, 9, 1, 2],
+                            [9, 1, 2, 3, 4, 5]
+                        ],
+                        initial: [
+                            [1, 0, 3, 0, 5, 0],
+                            [0, 5, 0, 1, 0, 3],
+                            [2, 0, 4, 0, 9, 0],
+                            [0, 9, 0, 2, 0, 4],
+                            [3, 0, 5, 0, 1, 0],
+                            [0, 1, 0, 3, 0, 5]
+                        ]
+                    },
+                    {
+                        id: 'trig-6-normal',
+                        group: 'B',
+                        func: 'sin',
+                        size: 6,
+                        blockRows: 2,
+                        blockCols: 3,
+                        maxNum: 9,
+                        diffLabel: 'ノーマル',
+                        subTag: 'sin',
+                        title: '6×6 · ノーマル (sin)',
+                        validTargets: [150, 180],
+                        solution: [
+                            [1, 2, 3, 7, 8, 9],
+                            [7, 8, 9, 1, 2, 3],
+                            [2, 3, 7, 8, 9, 1],
+                            [8, 9, 1, 2, 3, 7],
+                            [3, 7, 8, 9, 1, 2],
+                            [9, 1, 2, 3, 7, 8]
+                        ],
+                        initial: [
+                            [1, 2, 0, 7, 0, 0],
+                            [0, 0, 9, 0, 2, 0],
+                            [2, 0, 0, 8, 0, 0],
+                            [0, 9, 0, 0, 3, 0],
+                            [0, 7, 0, 9, 0, 2],
+                            [9, 0, 2, 0, 0, 0]
+                        ]
+                    },
+                    {
+                        id: 'trig-6-hard',
+                        group: 'B',
+                        func: 'sin',
+                        size: 6,
+                        blockRows: 2,
+                        blockCols: 3,
+                        maxNum: 9,
+                        diffLabel: 'ハード',
+                        subTag: 'sin',
+                        title: '6×6 · ハード (sin)',
+                        validTargets: [150, 180],
+                        solution: [
+                            [1, 2, 4, 6, 8, 9],
+                            [6, 8, 9, 1, 2, 4],
+                            [2, 4, 6, 8, 9, 1],
+                            [8, 9, 1, 2, 4, 6],
+                            [4, 6, 8, 9, 1, 2],
+                            [9, 1, 2, 4, 6, 8]
+                        ],
+                        initial: [
+                            [1, 2, 0, 0, 0, 9],
+                            [0, 8, 0, 1, 0, 0],
+                            [0, 0, 6, 8, 0, 0],
+                            [8, 0, 0, 0, 4, 0],
+                            [0, 6, 0, 0, 0, 2],
+                            [0, 0, 2, 4, 0, 0]
+                        ]
+                    }
+                ]
+            }
+        };
+
+        // アプリ状態
+        let currentWorldId = 'root';
+        let currentStageIndex = 0;
+        let board = [];
+        let cellMemos = [];
+        let targetMemos = { rows: [], cols: [], blocks: [] };
+        let isMemoMode = false;
+        let selectedCell = { r: 0, c: 1 };
+        let isCleared = false;
+
+        // 永続化データ（クリア済みステージID集合 & 各ステージの入力状態）
+        let savedState = {
+            clearedStages: {},
+            stageProgress: {}
+        };
+
+        // クラウドストレージ初期化
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let saveTimer = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'irrational-sudoku-app';
+
+        async function initCloudStorage() {
+            try {
+                if (typeof __firebase_config === 'undefined') return;
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = cred.user;
+                } else {
+                    const cred = await signInAnonymously(auth);
+                    currentUser = cred.user;
+                }
+
+                await loadProgressFromCloud();
+            } catch (err) {
+                console.error('Progress storage initialization skipped:', err);
+            }
+        }
+
+        async function loadProgressFromCloud() {
+            if (!db || !currentUser) return;
+            try {
+                const progressDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'gameData', 'progress');
+                const snap = await getDoc(progressDocRef);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (data.clearedStages) savedState.clearedStages = data.clearedStages;
+                    if (data.stageProgress) savedState.stageProgress = data.stageProgress;
+                    renderHomeWorldCards();
+                    if (!gameScreenEl.classList.contains('hidden')) {
+                        initGame(false);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load progress:', err);
+            }
+        }
+
+        function persistCurrentStageProgress() {
+            const stage = getStage();
+            const serializedMemos = cellMemos.map(row => row.map(s => Array.from(s)));
+            savedState.stageProgress[stage.id] = {
+                boardJson: JSON.stringify(board),
+                memosJson: JSON.stringify(serializedMemos),
+                targetMemos: {
+                    rows: [...targetMemos.rows],
+                    cols: [...targetMemos.cols],
+                    blocks: [...targetMemos.blocks]
+                },
+                isCleared: isCleared
+            };
+            if (isCleared) {
+                savedState.clearedStages[stage.id] = true;
+            }
+            scheduleCloudSave();
+        }
+
+        function scheduleCloudSave() {
+            if (!db || !currentUser) return;
+            if (saveTimer) clearTimeout(saveTimer);
+            saveTimer = setTimeout(async () => {
+                if (!db || !currentUser) return;
+                try {
+                    const progressDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'gameData', 'progress');
+                    await setDoc(progressDocRef, {
+                        clearedStages: savedState.clearedStages,
+                        stageProgress: savedState.stageProgress,
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                } catch (err) {
+                    console.error('Failed to save progress:', err);
+                }
+            }, 350);
+        }
+
+        // DOM参照
+        const appBodyEl = document.getElementById('appBody');
+        const homeScreenEl = document.getElementById('homeScreen');
+        const gameScreenEl = document.getElementById('gameScreen');
+        const stageBadgeEl = document.getElementById('stageBadge');
+        const gameTitleHeadingEl = document.getElementById('gameTitleHeading');
+        const groupLabelAEl = document.getElementById('groupLabelA');
+        const groupLabelBEl = document.getElementById('groupLabelB');
+        const stageGroupAEl = document.getElementById('stageGroupA');
+        const stageGroupBEl = document.getElementById('stageGroupB');
+        const groupLabelADesktopEl = document.getElementById('groupLabelADesktop');
+        const groupLabelBDesktopEl = document.getElementById('groupLabelBDesktop');
+        const stageGroupADesktopEl = document.getElementById('stageGroupADesktop');
+        const stageGroupBDesktopEl = document.getElementById('stageGroupBDesktop');
+        const rulesTitleEl = document.getElementById('rulesTitle');
+        const rulesListEl = document.getElementById('rulesList');
+        const rulesIconSvgEl = document.getElementById('rulesIconSvg');
+        const statusBannerEl = document.getElementById('statusBanner');
+        const statusTextEl = document.getElementById('statusText');
+        const statusDotEl = document.getElementById('statusDot');
+        const blockPanelEl = document.getElementById('blockPanel');
+        const blockPanelTitleEl = document.getElementById('blockPanelTitle');
+        const blockBadgesEl = document.getElementById('blockBadges');
+        const blockMemoHintEl = document.getElementById('blockMemoHint');
+        const lineMemoHintEl = document.getElementById('lineMemoHint');
+        const boardWrapperEl = document.getElementById('boardWrapper');
+        const rootSvgOverlayEl = document.getElementById('rootSvgOverlay');
+        const leftSymbolBoxEl = document.getElementById('leftSymbolBox');
+        const leftSymbolTextEl = document.getElementById('leftSymbolText');
+        const leftSymbolSubEl = document.getElementById('leftSymbolSub');
+        const logLeftBracketEl = document.getElementById('logLeftBracket');
+        const logRightBracketEl = document.getElementById('logRightBracket');
+        const trigDegreeBoxEl = document.getElementById('trigDegreeBox');
+        const gridAndLineBadgesEl = document.getElementById('gridAndLineBadges');
+        const gridEl = document.getElementById('sudokuGrid');
+        const rowBadgesEl = document.getElementById('rowBadges');
+        const colBadgesEl = document.getElementById('colBadges');
+        const numPadGridEl = document.getElementById('numPadGrid');
+        const modeNormalBtn = document.getElementById('modeNormalBtn');
+        const modeMemoBtn = document.getElementById('modeMemoBtn');
+        const clearModalEl = document.getElementById('clearModal');
+        const clearIconEl = document.getElementById('clearIcon');
+        const clearTitleEl = document.getElementById('clearTitle');
+        const clearDescEl = document.getElementById('clearDesc');
+        const clearFormulaEl = document.getElementById('clearFormula');
+        const nextStageBtn = document.getElementById('nextStageBtn');
+
+        function getWorld() {
+            return WORLDS[currentWorldId];
+        }
+
+        function getStage() {
+            return getWorld().stages[currentStageIndex];
+        }
+
+        function getExactLogInteger(sum, base) {
+            if (!Number.isInteger(sum) || sum <= 1 || base <= 1) return null;
+            let val = 1;
+            let exp = 0;
+            while (val < sum) {
+                val *= base;
+                exp++;
+            }
+            return val === sum ? exp : null;
+        }
+
+        function getRationalTrigValue(func, deg) {
+            const table = RATIONAL_TRIG[func];
+            if (!table) return null;
+            return Object.prototype.hasOwnProperty.call(table, deg) ? table[deg] : null;
+        }
+
+        // トップ画面のワールドカード（進捗数＆全クリア時の緑色＋光沢表示）を更新
+        function renderHomeWorldCards() {
+            Object.values(WORLDS).forEach((world, idx) => {
+                const card = document.querySelector(`.world-card[data-world="${world.id}"]`);
+                const badge = document.querySelector(`[data-world-badge="${world.id}"]`);
+                const footer = document.querySelector(`[data-world-footer="${world.id}"]`);
+                if (!card || !badge || !footer) return;
+
+                const clearedCount = world.stages.filter(s => !!savedState.clearedStages[s.id]).length;
+                const totalCount = world.stages.length;
+                const isAllCleared = clearedCount === totalCount;
+
+                card.classList.remove(
+                    'glossy-card',
+                    'bg-gradient-to-br', 'from-emerald-950/90', 'via-emerald-900/80', 'to-teal-950/90',
+                    'border-emerald-400', 'hover:border-emerald-300',
+                    'bg-slate-900/90', 'hover:bg-slate-800/95',
+                    'border-indigo-500/40', 'hover:border-indigo-400',
+                    'border-cyan-500/40', 'hover:border-cyan-400',
+                    'border-amber-500/40', 'hover:border-amber-400'
+                );
+
+                if (isAllCleared) {
+                    card.classList.add(
+                        'glossy-card',
+                        'bg-gradient-to-br', 'from-emerald-950/90', 'via-emerald-900/80', 'to-teal-950/90',
+                        'border-emerald-400', 'hover:border-emerald-300'
+                    );
+                    badge.className = 'px-2.5 py-0.5 text-[11px] font-extrabold bg-emerald-400 text-slate-950 rounded-full shadow-sm';
+                    badge.textContent = `★ ALL CLEAR (${clearedCount}/${totalCount})`;
+                    footer.className = 'mt-4 pt-3 border-t border-emerald-500/40 flex items-center justify-between text-xs font-extrabold text-emerald-300';
+                    footer.innerHTML = '<span>全ステージ完全制覇！</span><span>プレイ →</span>';
+                } else {
+                    card.classList.add('bg-slate-900/90', 'hover:bg-slate-800/95');
+                    if (world.accent === 'indigo') {
+                        card.classList.add('border-indigo-500/40', 'hover:border-indigo-400');
+                        badge.className = 'px-2.5 py-0.5 text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full';
+                        footer.className = 'mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-bold text-indigo-300 group-hover:text-indigo-200';
+                    } else if (world.accent === 'cyan') {
+                        card.classList.add('border-cyan-500/40', 'hover:border-cyan-400');
+                        badge.className = 'px-2.5 py-0.5 text-[11px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-full';
+                        footer.className = 'mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-bold text-cyan-300 group-hover:text-cyan-200';
+                    } else {
+                        card.classList.add('border-amber-500/40', 'hover:border-amber-400');
+                        badge.className = 'px-2.5 py-0.5 text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full';
+                        footer.className = 'mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-bold text-amber-300 group-hover:text-amber-200';
+                    }
+                    badge.textContent = `WORLD ${idx + 1} · ${clearedCount}/${totalCount} クリア`;
+                    const subDesc = world.id === 'log' ? '底2 / 底3（各3難易度）' : '4×4 / 6×6（各3難易度）';
+                    footer.innerHTML = `<span>${subDesc}</span><span>プレイ →</span>`;
+                }
+            });
+        }
+
+        // 画面遷移：トップメニュー <-> ゲーム画面
+        function showHomeScreen() {
+            clearModalEl.classList.add('hidden');
+            clearModalEl.classList.remove('flex');
+            gameScreenEl.classList.add('hidden');
+            homeScreenEl.classList.remove('hidden');
+            appBodyEl.className = 'min-h-screen flex flex-col items-center justify-between p-4 sm:p-6 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 transition-colors duration-500';
+            renderHomeWorldCards();
+        }
+
+        function startWorld(worldId, stageIndex = 0) {
+            currentWorldId = worldId;
+            currentStageIndex = stageIndex;
+            homeScreenEl.classList.add('hidden');
+            gameScreenEl.classList.remove('hidden');
+            initGame(false);
+        }
+
+        // ステージ選択ボタン描画（クリア済みステージは緑色＋光沢表示・モバイル/PC両対応）
+        function renderStageSelector() {
+            const world = getWorld();
+            const accentBg = world.accent === 'indigo' ? 'bg-indigo-600' : (world.accent === 'cyan' ? 'bg-cyan-600' : 'bg-amber-600');
+
+            groupLabelAEl.textContent = world.groupLabelA;
+            groupLabelBEl.textContent = world.groupLabelB;
+            groupLabelADesktopEl.textContent = world.groupLabelA;
+            groupLabelBDesktopEl.textContent = world.groupLabelB;
+            stageGroupAEl.innerHTML = '';
+            stageGroupBEl.innerHTML = '';
+            stageGroupADesktopEl.innerHTML = '';
+            stageGroupBDesktopEl.innerHTML = '';
+
+            function createStageButton(stage, idx) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                const isActive = idx === currentStageIndex;
+                const isStageCleared = !!savedState.clearedStages[stage.id];
+                const checkPrefix = isStageCleared ? '✓ ' : '';
+
+                if (stage.subTag) {
+                    btn.innerHTML = `<span>${checkPrefix}${stage.diffLabel}</span><span class="block text-[9px] math-font opacity-90">${stage.subTag}</span>`;
+                } else {
+                    btn.textContent = `${checkPrefix}${stage.diffLabel}`;
+                }
+
+                if (isStageCleared) {
+                    const activeRing = isActive ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 scale-[1.02]' : 'opacity-95 hover:opacity-100';
+                    btn.className = `glossy-stage-btn py-1.5 px-1.5 rounded-lg text-xs font-extrabold bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 border border-emerald-200/80 transition leading-tight ${activeRing}`;
+                } else if (isActive) {
+                    btn.className = `py-1.5 px-1.5 rounded-lg text-xs font-bold ${accentBg} text-white shadow transition leading-tight`;
+                } else {
+                    btn.className = 'py-1.5 px-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-700/80 hover:text-white transition leading-tight';
+                }
+
+                btn.addEventListener('click', () => {
+                    if (currentStageIndex !== idx) {
+                        currentStageIndex = idx;
+                        initGame(false);
+                    }
+                });
+                return btn;
+            }
+
+            world.stages.forEach((stage, idx) => {
+                const mobileBtn = createStageButton(stage, idx);
+                const desktopBtn = createStageButton(stage, idx);
+                if (stage.group === 'A') {
+                    stageGroupAEl.appendChild(mobileBtn);
+                    stageGroupADesktopEl.appendChild(desktopBtn);
+                } else {
+                    stageGroupBEl.appendChild(mobileBtn);
+                    stageGroupBDesktopEl.appendChild(desktopBtn);
+                }
+            });
+        }
+
+        // 数字キーパッド動的描画
+        function renderNumPad() {
+            const world = getWorld();
+            const stage = getStage();
+            const maxNum = stage.maxNum;
+            const hoverBg = world.accent === 'indigo' ? 'hover:bg-indigo-600' : (world.accent === 'cyan' ? 'hover:bg-cyan-600' : 'hover:bg-amber-600');
+            numPadGridEl.innerHTML = '';
+
+            if (maxNum === 9) {
+                numPadGridEl.className = 'grid grid-cols-5 gap-2';
+            } else {
+                numPadGridEl.className = 'grid grid-cols-7 gap-1.5 sm:gap-2';
+            }
+
+            for (let n = 1; n <= maxNum; n++) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.dataset.num = n;
+
+                if (world.id === 'trig') {
+                    btn.className = `num-btn py-2.5 sm:py-3 rounded-xl bg-slate-800 ${hoverBg} active:scale-95 text-white font-bold math-font border border-slate-700 shadow-md transition flex flex-col items-center justify-center leading-none`;
+                    btn.innerHTML = `<span class="text-base sm:text-xl">${n}</span><span class="text-[9px] text-slate-400 mt-0.5">${n * 5}°</span>`;
+                } else {
+                    btn.className = `num-btn py-3 sm:py-3.5 rounded-xl bg-slate-800 ${hoverBg} active:scale-95 text-white font-bold text-base sm:text-xl math-font border border-slate-700 shadow-md transition`;
+                    btn.textContent = n;
+                }
+
+                btn.addEventListener('click', () => inputNumber(n));
+                numPadGridEl.appendChild(btn);
+            }
+
+            const eraseBtn = document.createElement('button');
+            eraseBtn.type = 'button';
+            eraseBtn.textContent = '消去';
+            eraseBtn.className = (maxNum === 12 ? 'col-span-2 ' : '') + 'py-2.5 sm:py-3 rounded-xl bg-rose-950/60 hover:bg-rose-800/80 active:scale-95 text-rose-200 font-bold text-xs sm:text-sm border border-rose-800/50 shadow-md transition flex items-center justify-center';
+            eraseBtn.addEventListener('click', () => inputNumber(0));
+            numPadGridEl.appendChild(eraseBtn);
+
+            updateNumButtonsAppearance();
+        }
+
+        // ワールド・ステージに応じたビジュアルとルールの切り替え
+        function applyWorldAndStageLayout() {
+            const world = getWorld();
+            const stage = getStage();
+            const size = stage.size;
+            const bRows = stage.blockRows;
+            const bCols = stage.blockCols;
+            const blockCount = (size / bRows) * (size / bCols);
+            const targets = stage.validTargets;
+
+            // 背景グラデーションとテーマカラー
+            if (world.id === 'root') {
+                appBodyEl.className = 'min-h-screen flex flex-col items-center justify-between p-4 sm:p-6 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 transition-colors duration-500';
+                stageBadgeEl.className = 'px-2 py-0.5 text-xs font-bold tracking-wider uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full';
+                rulesIconSvgEl.setAttribute('class', 'w-4 h-4 text-indigo-400');
+                gameTitleHeadingEl.innerHTML = '<span>無理数独　</span><span class="text-indigo-400 math-font text-3xl sm:text-4xl font-bold">√</span>';
+                gridEl.className = `sudoku-grid ${size === 4 ? 'sudoku-grid-4' : 'sudoku-grid-6'} flex-1 aspect-square bg-slate-900/95 rounded-2xl border-2 border-indigo-400/50 shadow-2xl overflow-hidden relative`;
+            } else if (world.id === 'log') {
+                appBodyEl.className = 'min-h-screen flex flex-col items-center justify-between p-4 sm:p-6 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 transition-colors duration-500';
+                stageBadgeEl.className = 'px-2 py-0.5 text-xs font-bold tracking-wider uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-full';
+                rulesIconSvgEl.setAttribute('class', 'w-4 h-4 text-cyan-400');
+                gameTitleHeadingEl.innerHTML = `<span>無理数独　</span><span class="text-cyan-400 math-font text-3xl sm:text-4xl font-bold">log</span><sub class="text-cyan-300 math-font text-lg sm:text-xl font-bold ml-0.5">${stage.base}</sub>`;
+                gridEl.className = `sudoku-grid ${size === 4 ? 'sudoku-grid-4' : 'sudoku-grid-6'} flex-1 aspect-square bg-slate-900/95 rounded-2xl border-2 border-cyan-400/50 shadow-2xl overflow-hidden relative`;
+            } else {
+                appBodyEl.className = 'min-h-screen flex flex-col items-center justify-between p-4 sm:p-6 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 transition-colors duration-500';
+                stageBadgeEl.className = 'px-2 py-0.5 text-xs font-bold tracking-wider uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full';
+                rulesIconSvgEl.setAttribute('class', 'w-4 h-4 text-amber-400');
+                gameTitleHeadingEl.innerHTML = `<span>無理数独　</span><span class="text-amber-400 math-font text-3xl sm:text-4xl font-bold">${stage.func}</span>`;
+                gridEl.className = `sudoku-grid ${size === 4 ? 'sudoku-grid-4' : 'sudoku-grid-6'} flex-1 aspect-square bg-slate-900/95 rounded-2xl border-2 border-amber-400/50 shadow-2xl overflow-hidden relative`;
+            }
+
+            stageBadgeEl.textContent = stage.title;
+
+            // 巨大数学記号の表示切り替え
+            rootSvgOverlayEl.classList.add('hidden');
+            leftSymbolBoxEl.classList.add('hidden');
+            leftSymbolBoxEl.classList.remove('flex');
+            logLeftBracketEl.classList.add('hidden');
+            logRightBracketEl.classList.add('hidden');
+            trigDegreeBoxEl.classList.add('hidden');
+            trigDegreeBoxEl.classList.remove('flex');
+            gridAndLineBadgesEl.classList.remove('py-1');
+
+            if (world.id === 'root') {
+                boardWrapperEl.className = 'relative w-full max-w-[430px] pt-7 pl-9 sm:pt-9 sm:pl-11 pr-1.5 pb-1.5';
+                rootSvgOverlayEl.classList.remove('hidden');
+            } else if (world.id === 'log') {
+                boardWrapperEl.className = 'relative w-full max-w-[495px] flex items-stretch justify-center gap-1 sm:gap-1.5';
+                leftSymbolBoxEl.classList.remove('hidden');
+                leftSymbolBoxEl.classList.add('flex');
+                leftSymbolTextEl.className = 'symbol-glow text-cyan-400 math-font font-bold flex items-baseline leading-none';
+                leftSymbolTextEl.innerHTML = `<span class="text-4xl sm:text-6xl tracking-tighter">log</span><sub class="text-2xl sm:text-4xl text-cyan-300 ml-0.5">${stage.base}</sub>`;
+                leftSymbolSubEl.textContent = '真数 = 各和';
+                logLeftBracketEl.classList.remove('hidden');
+                logRightBracketEl.classList.remove('hidden');
+                gridAndLineBadgesEl.classList.add('py-1');
+            } else {
+                boardWrapperEl.className = 'relative w-full max-w-[495px] flex items-stretch justify-center gap-1.5 sm:gap-2';
+                leftSymbolBoxEl.classList.remove('hidden');
+                leftSymbolBoxEl.classList.add('flex');
+                leftSymbolTextEl.className = 'symbol-glow text-amber-400 math-font font-bold flex items-baseline leading-none';
+                leftSymbolTextEl.innerHTML = `<span class="text-4xl sm:text-6xl tracking-tighter">${stage.func}</span>`;
+                leftSymbolSubEl.textContent = '1マス = 5°';
+                trigDegreeBoxEl.classList.remove('hidden');
+                trigDegreeBoxEl.classList.add('flex');
+                gridAndLineBadgesEl.classList.add('py-1');
+            }
+
+            // 列バッジの列数切り替え
+            colBadgesEl.classList.remove('grid-cols-4', 'grid-cols-6');
+            colBadgesEl.classList.add(size === 4 ? 'grid-cols-4' : 'grid-cols-6');
+
+            // 左側ブロックメモパネル切り替え
+            blockPanelTitleEl.textContent = `${bRows}×${bCols}ブロック (${blockCount}個)`;
+            blockBadgesEl.classList.remove('grid-cols-2', 'grid-rows-2', 'grid-rows-3', 'sm:aspect-square');
+            if (size === 4) {
+                blockPanelEl.classList.remove('sm:w-36');
+                blockPanelEl.classList.add('sm:w-32');
+                blockBadgesEl.classList.add('grid-cols-2', 'grid-rows-2', 'sm:aspect-square');
+            } else {
+                blockPanelEl.classList.remove('sm:w-32');
+                blockPanelEl.classList.add('sm:w-36');
+                blockBadgesEl.classList.add('grid-cols-2', 'grid-rows-3');
+            }
+
+            // メモヒントとルール説明の更新
+            const unitSuffix = world.id === 'trig' ? '°' : '';
+            const targetLabels = targets.map(t => `${t}${unitSuffix}`);
+            if (targetLabels.length > 1) {
+                blockMemoHintEl.innerHTML = `タップで <span class="text-sky-300 font-semibold math-font">${targetLabels.join(' / ')}</span> メモ`;
+                lineMemoHintEl.innerHTML = `${targetLabels.join('/')}<br>メモ`;
+            } else {
+                blockMemoHintEl.innerHTML = `目標和：<span class="text-emerald-300 font-semibold math-font">${targetLabels[0]}</span>`;
+                lineMemoHintEl.innerHTML = `目標<br>${targetLabels[0]}`;
+            }
+
+            if (world.id === 'root') {
+                rulesTitleEl.innerHTML = `<span class="text-indigo-400 math-font">√(和) = 整数</span> にしよう！（${size}×${size}盤面）`;
+                const formulaStr = targets.map(t => `<strong class="text-emerald-400 math-font">${t}</strong>（<span class="math-font">√${t} = ${Math.sqrt(t)}</span>）`).join(' または ');
+                rulesListEl.innerHTML = `
+                    <li>マスを選んで <strong class="text-white">1〜9</strong> の数字を入力してください（<span class="text-amber-300">候補メモ</span>や各バッジの<span class="text-sky-300">目標メモ</span>も活用できます）。</li>
+                    <li><strong class="text-indigo-300">同じ行（${size}マス）・同じ列（${size}マス）・同じ${bRows}×${bCols}ブロック（${bRows * bCols}マス）</strong>内で数字は重複できません。</li>
+                    <li>すべての行・列・ブロックの合計を ${formulaStr} にしてルートを外せばクリア！</li>
+                `;
+            } else if (world.id === 'log') {
+                rulesTitleEl.innerHTML = `<span class="text-cyan-400 math-font">log${stage.baseSub}(和) = 整数</span> にしよう！（${size}×${size}盤面）`;
+                const formulaStr = targets.map(t => `<strong class="text-emerald-400 math-font">${t}</strong>（<span class="math-font">log${stage.baseSub}${t} = ${getExactLogInteger(t, stage.base)}</span>）`).join(' または ');
+                rulesListEl.innerHTML = `
+                    <li>マスを選んで <strong class="text-white">1〜${stage.maxNum}</strong> の数字を入力してください（<span class="text-amber-300">候補メモ</span>も活用できます）。</li>
+                    <li><strong class="text-cyan-300">同じ行（${size}マス）・同じ列（${size}マス）・同じ${bRows}×${bCols}ブロック（${bRows * bCols}マス）</strong>内で数字は重複できません。</li>
+                    <li>すべての行・列・ブロックの合計を ${formulaStr} にして、対数をすべて整数にすればクリア！</li>
+                `;
+            } else {
+                rulesTitleEl.innerHTML = `<span class="text-amber-400 math-font">${stage.func}(5° × 和) = 有理数</span> にしよう！（${size}×${size}盤面）`;
+                const formulaStr = targets.map(deg => `<strong class="text-emerald-400 math-font">${deg}°</strong>（和${deg / 5} → <span class="math-font">${stage.func}${deg}° = ${getRationalTrigValue(stage.func, deg)}</span>）`).join(' または ');
+                rulesListEl.innerHTML = `
+                    <li>マスに <strong class="text-white">1〜9</strong> を入れると <strong class="text-amber-300">5°〜45°</strong>（1マス＝5°刻み）の角度になります。</li>
+                    <li><strong class="text-amber-300">同じ行（${size}マス）・同じ列（${size}マス）・同じ${bRows}×${bCols}ブロック（${bRows * bCols}マス）</strong>内で数字は重複できません。</li>
+                    <li>すべての行・列・ブロックの合計角度を ${formulaStr} にして、すべて有理数にすればクリア！</li>
+                `;
+            }
+        }
+
+        function setMemoMode(memo) {
+            isMemoMode = memo;
+            const world = getWorld();
+            const normalBg = world.accent === 'indigo' ? 'bg-indigo-600' : (world.accent === 'cyan' ? 'bg-cyan-600' : 'bg-amber-600');
+            const memoBg = world.id === 'trig' ? 'bg-sky-500' : 'bg-amber-500';
+
+            if (isMemoMode) {
+                modeMemoBtn.className = `flex-1 py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${memoBg} text-slate-950 shadow`;
+                modeNormalBtn.className = 'flex-1 py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
+            } else {
+                modeNormalBtn.className = `flex-1 py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${normalBg} text-white shadow`;
+                modeMemoBtn.className = 'flex-1 py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
+            }
+            updateNumButtonsAppearance();
+        }
+
+        function updateNumButtonsAppearance() {
+            const world = getWorld();
+            const normalHover = world.accent === 'indigo' ? 'hover:bg-indigo-600' : (world.accent === 'cyan' ? 'hover:bg-cyan-600' : 'hover:bg-amber-600');
+            const memoClasses = world.id === 'trig'
+                ? ['hover:bg-sky-500', 'hover:text-slate-950', 'text-sky-300', 'border-sky-500/40']
+                : ['hover:bg-amber-500', 'hover:text-slate-950', 'text-amber-300', 'border-amber-500/40'];
+
+            document.querySelectorAll('.num-btn').forEach(btn => {
+                btn.classList.remove('hover:bg-indigo-600', 'hover:bg-cyan-600', 'hover:bg-amber-600', 'hover:bg-amber-500', 'hover:bg-sky-500', 'hover:text-slate-950', 'text-amber-300', 'text-sky-300', 'border-amber-500/40', 'border-sky-500/40', 'text-white');
+                if (isMemoMode) {
+                    btn.classList.add(...memoClasses);
+                } else {
+                    btn.classList.add(normalHover, 'text-white');
+                }
+            });
+        }
+
+        function cycleTargetMemo(groupType, index) {
+            if (isCleared) return;
+            const targets = getStage().validTargets;
+            const current = targetMemos[groupType][index];
+            if (current === null) {
+                targetMemos[groupType][index] = targets[0];
+            } else {
+                const pos = targets.indexOf(current);
+                if (pos >= 0 && pos < targets.length - 1) {
+                    targetMemos[groupType][index] = targets[pos + 1];
+                } else {
+                    targetMemos[groupType][index] = null;
+                }
+            }
+            persistCurrentStageProgress();
+            renderAll();
+        }
+
+        function initGame(forceReset = false) {
+            const stage = getStage();
+            const size = stage.size;
+            const blockCount = (size / stage.blockRows) * (size / stage.blockCols);
+
+            renderStageSelector();
+            applyWorldAndStageLayout();
+            renderNumPad();
+
+            const saved = !forceReset ? savedState.stageProgress[stage.id] : null;
+            if (saved && saved.boardJson) {
+                try {
+                    board = JSON.parse(saved.boardJson);
+                    const parsedMemos = JSON.parse(saved.memosJson || '[]');
+                    cellMemos = Array.from({ length: size }, (_, r) =>
+                        Array.from({ length: size }, (_, c) => new Set((parsedMemos[r] && parsedMemos[r][c]) || []))
+                    );
+                    targetMemos = {
+                        rows: (saved.targetMemos && saved.targetMemos.rows) ? [...saved.targetMemos.rows] : Array(size).fill(null),
+                        cols: (saved.targetMemos && saved.targetMemos.cols) ? [...saved.targetMemos.cols] : Array(size).fill(null),
+                        blocks: (saved.targetMemos && saved.targetMemos.blocks) ? [...saved.targetMemos.blocks] : Array(blockCount).fill(null)
+                    };
+                    isCleared = !!saved.isCleared;
+                } catch (e) {
+                    board = stage.initial.map(row => [...row]);
+                    cellMemos = Array.from({ length: size }, () => Array.from({ length: size }, () => new Set()));
+                    targetMemos = { rows: Array(size).fill(null), cols: Array(size).fill(null), blocks: Array(blockCount).fill(null) };
+                    isCleared = false;
+                }
+            } else {
+                board = stage.initial.map(row => [...row]);
+                cellMemos = Array.from({ length: size }, () =>
+                    Array.from({ length: size }, () => new Set())
+                );
+                targetMemos = {
+                    rows: Array(size).fill(null),
+                    cols: Array(size).fill(null),
+                    blocks: Array(blockCount).fill(null)
+                };
+                isCleared = false;
+                if (forceReset) {
+                    persistCurrentStageProgress();
+                }
+            }
+
+            setMemoMode(false);
+            if (isCleared) {
+                boardWrapperEl.classList.add('board-solved');
+            } else {
+                boardWrapperEl.classList.remove('board-solved');
+            }
+            clearModalEl.classList.add('hidden');
+            clearModalEl.classList.remove('flex');
+
+            selectedCell = { r: 0, c: 0 };
+            outer: for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    if (stage.initial[r][c] === 0) {
+                        selectedCell = { r, c };
+                        break outer;
+                    }
+                }
+            }
+            renderAll();
+        }
+
+        // ワールドごとの厳密なクリア・計算評価ロジック
+        function evaluateGroup(values) {
+            const world = getWorld();
+            const stage = getStage();
+            const expectedLen = values.length;
+            const filled = values.filter(v => v !== 0);
+            const sum = filled.reduce((acc, v) => acc + v, 0);
+            const hasDuplicate = new Set(filled).size !== filled.length;
+            const isFull = filled.length === expectedLen;
+            const maxTarget = Math.max(...stage.validTargets);
+
+            if (hasDuplicate) {
+                return { status: 'error', currentVal: sum, text: '重複!', sub: 'NG' };
+            }
+
+            if (world.id === 'root') {
+                if (isFull) {
+                    if (stage.validTargets.includes(sum)) {
+                        const rootVal = Math.sqrt(sum);
+                        return { status: 'solved', currentVal: sum, text: `=${rootVal}`, sub: `√${sum}` };
+                    }
+                    return { status: 'error', currentVal: sum, text: `√${sum}`, sub: '無理数' };
+                }
+                if (sum > maxTarget) return { status: 'error', currentVal: sum, text: `√${sum}`, sub: '超過' };
+                return { status: 'pending', currentVal: sum, text: `√${sum}`, sub: '' };
+            }
+
+            if (world.id === 'log') {
+                const exactLogInt = getExactLogInteger(sum, stage.base);
+                if (isFull) {
+                    if (exactLogInt !== null && stage.validTargets.includes(sum)) {
+                        return { status: 'solved', currentVal: sum, text: `=${exactLogInt}`, sub: `log${stage.baseSub}${sum}` };
+                    }
+                    return { status: 'error', currentVal: sum, text: `log${stage.baseSub}${sum}`, sub: '非整数' };
+                }
+                if (sum > maxTarget) return { status: 'error', currentVal: sum, text: `log${stage.baseSub}${sum}`, sub: '超過' };
+                return { status: 'pending', currentVal: sum, text: `log${stage.baseSub}${sum}`, sub: '' };
+            }
+
+            // trig ワールド（1マス = 5° 刻み）
+            const deg = sum * 5;
+            const rationalVal = getRationalTrigValue(stage.func, deg);
+            if (isFull) {
+                if (rationalVal !== null && stage.validTargets.includes(deg)) {
+                    return { status: 'solved', currentVal: deg, text: `=${rationalVal}`, sub: `${stage.func}${deg}°` };
+                }
+                return { status: 'error', currentVal: deg, text: `${deg}°`, sub: '無理数' };
+            }
+            if (deg > maxTarget) return { status: 'error', currentVal: deg, text: `${deg}°`, sub: '超過' };
+            return { status: 'pending', currentVal: deg, text: `${deg}°`, sub: '' };
+        }
+
+        function renderAll() {
+            renderGrid();
+            const stats = updateCalculations();
+            updateStatusBanner(stats);
+        }
+
+        function updateStatusBanner({ errorTotal }) {
+            const world = getWorld();
+            if (!isCleared && errorTotal > 0) {
+                statusBannerEl.classList.remove('hidden');
+                statusBannerEl.classList.add('flex');
+                statusBannerEl.className = 'flex w-full mb-3 px-4 py-2 rounded-xl bg-rose-950/70 border border-rose-500/40 items-center justify-center text-xs sm:text-sm';
+                if (world.id === 'root') statusTextEl.textContent = '重複または平方数にならないライン/ブロックがあります';
+                else if (world.id === 'log') statusTextEl.textContent = '重複または対数が整数にならないライン/ブロックがあります';
+                else statusTextEl.textContent = '重複または三角関数が有理数にならないライン/ブロックがあります';
+                statusTextEl.className = 'text-rose-200 font-medium';
+                statusDotEl.className = 'w-2 h-2 rounded-full bg-rose-400 animate-ping';
+            } else {
+                statusBannerEl.classList.add('hidden');
+                statusBannerEl.classList.remove('flex');
+            }
+        }
+
+        function renderGrid() {
+            const world = getWorld();
+            const stage = getStage();
+            const size = stage.size;
+            const bRows = stage.blockRows;
+            const bCols = stage.blockCols;
+            const numBlockRows = size / bRows;
+            const numBlockCols = size / bCols;
+            gridEl.innerHTML = '';
+
+            const errorCells = new Set();
+            for (let r = 0; r < size; r++) {
+                for (let c1 = 0; c1 < size; c1++) {
+                    for (let c2 = c1 + 1; c2 < size; c2++) {
+                        if (board[r][c1] !== 0 && board[r][c1] === board[r][c2]) {
+                            errorCells.add(`${r}-${c1}`);
+                            errorCells.add(`${r}-${c2}`);
+                        }
+                    }
+                }
+            }
+            for (let c = 0; c < size; c++) {
+                for (let r1 = 0; r1 < size; r1++) {
+                    for (let r2 = r1 + 1; r2 < size; r2++) {
+                        if (board[r1][c] !== 0 && board[r1][c] === board[r2][c]) {
+                            errorCells.add(`${r1}-${c}`);
+                            errorCells.add(`${r2}-${c}`);
+                        }
+                    }
+                }
+            }
+            for (let br = 0; br < numBlockRows; br++) {
+                for (let bc = 0; bc < numBlockCols; bc++) {
+                    const cells = [];
+                    for (let dr = 0; dr < bRows; dr++) {
+                        for (let dc = 0; dc < bCols; dc++) {
+                            cells.push({ r: br * bRows + dr, c: bc * bCols + dc });
+                        }
+                    }
+                    for (let i = 0; i < cells.length; i++) {
+                        for (let j = i + 1; j < cells.length; j++) {
+                            const v1 = board[cells[i].r][cells[i].c];
+                            const v2 = board[cells[j].r][cells[j].c];
+                            if (v1 !== 0 && v1 === v2) {
+                                errorCells.add(`${cells[i].r}-${cells[i].c}`);
+                                errorCells.add(`${cells[j].r}-${cells[j].c}`);
+                            }
+                        }
+                    }
+                }
+            }
+
+            const borderAccent = world.accent === 'indigo' ? 'border-r-indigo-400/70' : (world.accent === 'cyan' ? 'border-r-cyan-400/70' : 'border-r-amber-400/70');
+            const borderBAccent = world.accent === 'indigo' ? 'border-b-indigo-400/70' : (world.accent === 'cyan' ? 'border-b-cyan-400/70' : 'border-b-amber-400/70');
+            const sameNumBg = world.accent === 'indigo' ? 'bg-indigo-900/50 ' : (world.accent === 'cyan' ? 'bg-cyan-900/50 ' : 'bg-amber-900/50 ');
+            const selectedBg = world.accent === 'indigo' ? 'bg-indigo-600/40 ring-2 ring-inset ring-indigo-400 ' : (world.accent === 'cyan' ? 'bg-cyan-600/40 ring-2 ring-inset ring-cyan-400 ' : 'bg-amber-600/40 ring-2 ring-inset ring-amber-400 ');
+            const userText = world.id === 'trig' ? 'text-amber-300 font-bold ' : 'text-cyan-300 font-bold ';
+
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const val = board[r][c];
+                    const isFixed = stage.initial[r][c] !== 0;
+                    const isSelected = selectedCell && selectedCell.r === r && selectedCell.c === c;
+                    const isSameGroup = selectedCell && (
+                        selectedCell.r === r ||
+                        selectedCell.c === c ||
+                        (Math.floor(selectedCell.r / bRows) === Math.floor(r / bRows) && Math.floor(selectedCell.c / bCols) === Math.floor(c / bCols))
+                    );
+                    const isSameNumber = selectedCell && val !== 0 && board[selectedCell.r][selectedCell.c] === val;
+                    const isError = errorCells.has(`${r}-${c}`);
+
+                    const cellBtn = document.createElement('button');
+                    cellBtn.type = 'button';
+
+                    let borderClasses = 'border-slate-700/60 ';
+                    borderClasses += ((c + 1) % bCols === 0 && c < size - 1) ? `border-r-2 ${borderAccent} ` : (c < size - 1 ? 'border-r ' : '');
+                    borderClasses += ((r + 1) % bRows === 0 && r < size - 1) ? `border-b-2 ${borderBAccent} ` : (r < size - 1 ? 'border-b ' : '');
+
+                    let bgClass = isFixed ? 'bg-slate-800/80 ' : 'bg-slate-900/95 hover:bg-slate-800/60 ';
+                    if (isSameNumber) bgClass = sameNumBg;
+                    if (isSameGroup) bgClass = 'bg-slate-800/95 ';
+                    if (isSelected) bgClass = selectedBg;
+                    if (isError) bgClass = 'bg-rose-950/60 ';
+
+                    let textClass = isFixed ? 'text-slate-200 font-bold ' : userText;
+                    if (isError) textClass = 'text-rose-400 font-bold ';
+
+                    const fontSizeClass = size === 4 ? 'text-xl sm:text-3xl' : 'text-base sm:text-xl';
+                    cellBtn.className = `cell-btn relative flex flex-col items-center justify-center ${fontSizeClass} math-font focus:outline-none ${borderClasses} ${bgClass} ${textClass}`;
+
+                    if (val !== 0) {
+                        const span = document.createElement('span');
+                        span.textContent = val;
+                        span.className = 'leading-none' + (!isFixed ? ' animate-pop' : '');
+                        cellBtn.appendChild(span);
+
+                        if (world.id === 'trig') {
+                            const degSub = document.createElement('span');
+                            degSub.textContent = `${val * 5}°`;
+                            degSub.className = 'text-[8px] sm:text-[9px] opacity-60 leading-none mt-0.5 font-normal';
+                            cellBtn.appendChild(degSub);
+                        }
+                    } else if (cellMemos[r][c].size > 0) {
+                        const memoColsClass = stage.maxNum <= 9 ? 'grid-cols-3 grid-rows-3' : 'grid-cols-4 grid-rows-3';
+                        const memoGrid = document.createElement('div');
+                        memoGrid.className = `grid ${memoColsClass} w-full h-full p-0.5 pointer-events-none`;
+                        const memoTextSize = size === 4 ? 'text-[9px] sm:text-[11px]' : 'text-[7px] sm:text-[9px]';
+                        const memoColor = world.id === 'trig' ? 'text-sky-300/90' : 'text-amber-300/90';
+                        for (let n = 1; n <= stage.maxNum; n++) {
+                            const mSpan = document.createElement('span');
+                            mSpan.className = `flex items-center justify-center ${memoTextSize} leading-none font-semibold ${memoColor} math-font`;
+                            mSpan.textContent = cellMemos[r][c].has(n) ? n : '';
+                            memoGrid.appendChild(mSpan);
+                        }
+                        cellBtn.appendChild(memoGrid);
+                    }
+
+                    if (isFixed) {
+                        const dot = document.createElement('span');
+                        dot.className = 'absolute top-1 right-1 w-1 h-1 rounded-full bg-slate-500';
+                        cellBtn.appendChild(dot);
+                    }
+
+                    cellBtn.addEventListener('click', () => {
+                        selectedCell = { r, c };
+                        renderAll();
+                    });
+
+                    gridEl.appendChild(cellBtn);
+                }
+            }
+        }
+
+        function updateCalculations() {
+            const world = getWorld();
+            const stage = getStage();
+            const size = stage.size;
+            const bRows = stage.blockRows;
+            const bCols = stage.blockCols;
+            const numBlockRows = size / bRows;
+            const numBlockCols = size / bCols;
+            const blockCount = numBlockRows * numBlockCols;
+            const totalGroups = size * 2 + blockCount;
+            const targets = stage.validTargets;
+            const unitSuffix = world.id === 'trig' ? '°' : '';
+
+            let solvedTotal = 0;
+            let errorTotal = 0;
+
+            // 1. 行バッジ
+            rowBadgesEl.innerHTML = '';
+            for (let r = 0; r < size; r++) {
+                const res = evaluateGroup(board[r]);
+                if (res.status === 'solved') solvedTotal++;
+                if (res.status === 'error') errorTotal++;
+                const badgeEl = createBadgeEl(res, 'row', targetMemos.rows[r], targets, unitSuffix);
+                badgeEl.addEventListener('click', () => cycleTargetMemo('rows', r));
+                rowBadgesEl.appendChild(badgeEl);
+            }
+
+            // 2. 列バッジ
+            colBadgesEl.innerHTML = '';
+            for (let c = 0; c < size; c++) {
+                const colVals = Array.from({ length: size }, (_, r) => board[r][c]);
+                const res = evaluateGroup(colVals);
+                if (res.status === 'solved') solvedTotal++;
+                if (res.status === 'error') errorTotal++;
+                const badgeEl = createBadgeEl(res, 'col', targetMemos.cols[c], targets, unitSuffix);
+                badgeEl.addEventListener('click', () => cycleTargetMemo('cols', c));
+                colBadgesEl.appendChild(badgeEl);
+            }
+
+            // 3. ブロックバッジ
+            blockBadgesEl.innerHTML = '';
+            const blockNames = size === 4
+                ? ['左上', '右上', '左下', '右下']
+                : ['左上', '右上', '左中', '右中', '左下', '右下'];
+
+            for (let b = 0; b < blockCount; b++) {
+                const br = Math.floor(b / numBlockCols) * bRows;
+                const bc = (b % numBlockCols) * bCols;
+                const blockVals = [];
+                for (let dr = 0; dr < bRows; dr++) {
+                    for (let dc = 0; dc < bCols; dc++) {
+                        blockVals.push(board[br + dr][bc + dc]);
+                    }
+                }
+                const res = evaluateGroup(blockVals);
+                if (res.status === 'solved') solvedTotal++;
+                if (res.status === 'error') errorTotal++;
+                const targetMemo = targetMemos.blocks[b];
+
+                const badge = document.createElement('button');
+                badge.type = 'button';
+                badge.title = `タップで目標（${targets.map(t => t + unitSuffix).join(' / ')}）をメモ`;
+                let style = 'bg-slate-900/80 border-slate-700 text-slate-400 hover:border-slate-500';
+                if (res.status === 'solved') {
+                    style = 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300 shadow-sm shadow-emerald-500/10';
+                } else if (res.status === 'error') {
+                    style = 'bg-rose-500/20 border-rose-500/50 text-rose-300';
+                } else if (targetMemo) {
+                    const colorIdx = targets.indexOf(targetMemo);
+                    if (colorIdx === 0) style = 'bg-sky-950/60 border-sky-400/60 text-sky-200';
+                    else if (colorIdx === 1) style = 'bg-purple-950/60 border-purple-400/60 text-purple-200';
+                    else style = 'bg-pink-950/60 border-pink-400/60 text-pink-200';
+                }
+                badge.className = `p-1.5 rounded-lg border text-center math-font text-[10px] transition-all active:scale-95 flex flex-col items-center justify-center ${style}`;
+                const targetTag = targetMemo ? `<span class="text-[8px] leading-none mt-0.5 font-bold text-amber-300">目標:${targetMemo}${unitSuffix}</span>` : '';
+                badge.innerHTML = `<span class="font-sans text-[8px] opacity-70 leading-none mb-0.5">${blockNames[b]}</span><span class="font-bold text-[10px] leading-tight">${res.text}</span>${targetTag}`;
+                badge.addEventListener('click', () => cycleTargetMemo('blocks', b));
+                blockBadgesEl.appendChild(badge);
+            }
+
+            // 全グループ達成でクリア判定！
+            if (solvedTotal === totalGroups && !isCleared) {
+                isCleared = true;
+                savedState.clearedStages[stage.id] = true;
+                persistCurrentStageProgress();
+                renderStageSelector();
+                renderHomeWorldCards();
+                boardWrapperEl.classList.add('board-solved');
+
+                if (world.id === 'root') {
+                    clearIconEl.textContent = '√✓';
+                    clearTitleEl.textContent = `${stage.title} クリア！`;
+                    clearDescEl.textContent = 'すべての行・列・ブロックの和が平方数になり、盤面全体のルートが美しく外れました！';
+                    clearFormulaEl.innerHTML = targets.map(t => `<div>√${t} = ${Math.sqrt(t)}</div>`).join('');
+                } else if (world.id === 'log') {
+                    clearIconEl.textContent = `log${stage.baseSub}✓`;
+                    clearTitleEl.textContent = `${stage.title} クリア！`;
+                    clearDescEl.textContent = `すべての行・列・ブロックの和の対数（log${stage.baseSub}）が厳密な整数になり、記号が外れました！`;
+                    clearFormulaEl.innerHTML = targets.map(t => `<div>log${stage.baseSub}(${t}) = ${getExactLogInteger(t, stage.base)}</div>`).join('');
+                } else {
+                    clearIconEl.textContent = `${stage.func}✓`;
+                    clearTitleEl.textContent = `${stage.title} クリア！`;
+                    clearDescEl.textContent = `すべての行・列・ブロックの角度の ${stage.func} が有理数になり、記号が外れました！`;
+                    clearFormulaEl.innerHTML = targets.map(deg => `<div>${stage.func}(${deg}°) = ${getRationalTrigValue(stage.func, deg)}</div>`).join('');
+                }
+
+                if (currentStageIndex < world.stages.length - 1) {
+                    nextStageBtn.textContent = `次のステージ（${world.stages[currentStageIndex + 1].title}）へ`;
+                } else {
+                    nextStageBtn.textContent = `最初のステージ（${world.stages[0].title}）に戻る`;
+                }
+
+                setTimeout(() => {
+                    clearModalEl.classList.remove('hidden');
+                    clearModalEl.classList.add('flex');
+                }, 450);
+            }
+
+            return { solvedTotal, errorTotal };
+        }
+
+        function createBadgeEl(res, type, targetMemo, targets, unitSuffix) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.title = `タップで目標（${targets.map(t => t + unitSuffix).join(' / ')}）をメモ`;
+            let baseClass = type === 'row'
+                ? 'flex-1 rounded-lg border px-0.5 flex flex-col items-center justify-center math-font transition-all active:scale-95 cursor-pointer '
+                : 'rounded-lg border py-1 px-0.5 flex flex-col items-center justify-center math-font transition-all active:scale-95 cursor-pointer ';
+
+            let targetBadgeHtml = '';
+            if (targetMemo) {
+                const remain = targetMemo - res.currentVal;
+                const remainText = (res.status !== 'solved' && remain > 0) ? `(${remain}${unitSuffix})` : '';
+                const colorIdx = targets.indexOf(targetMemo);
+                const tagColor = colorIdx === 0
+                    ? 'text-sky-300 bg-sky-500/20'
+                    : (colorIdx === 1 ? 'text-purple-300 bg-purple-500/20' : 'text-pink-300 bg-pink-500/20');
+                targetBadgeHtml = `<span class="mt-0.5 px-0.5 rounded text-[7px] sm:text-[8px] leading-tight font-bold ${tagColor}">${targetMemo}${unitSuffix}${remainText}</span>`;
+            }
+
+            if (res.status === 'solved') {
+                baseClass += 'bg-emerald-500/20 border-emerald-400/60 text-emerald-300 shadow-md shadow-emerald-500/10';
+                btn.innerHTML = `
+                    <span class="text-xs sm:text-sm font-bold leading-tight">${res.text}</span>
+                    <span class="text-[8px] text-emerald-400/80 leading-none">${res.sub}</span>
+                `;
+            } else if (res.status === 'error') {
+                baseClass += 'bg-rose-500/20 border-rose-500/60 text-rose-300';
+                btn.innerHTML = `
+                    <span class="text-[10px] sm:text-[11px] font-bold leading-tight">${res.text}</span>
+                    <span class="text-[8px] text-rose-400 leading-none">${res.sub}</span>
+                    ${targetBadgeHtml}
+                `;
+            } else {
+                if (targetMemo) {
+                    const colorIdx = targets.indexOf(targetMemo);
+                    if (colorIdx === 0) baseClass += 'bg-sky-950/50 border-sky-400/60 text-slate-200 hover:border-sky-300';
+                    else if (colorIdx === 1) baseClass += 'bg-purple-950/50 border-purple-400/60 text-slate-200 hover:border-purple-300';
+                    else baseClass += 'bg-pink-950/50 border-pink-400/60 text-slate-200 hover:border-pink-300';
+                } else {
+                    baseClass += 'bg-slate-800/70 border-slate-700/70 text-slate-400 hover:border-slate-500';
+                }
+                btn.innerHTML = `
+                    <span class="text-[10px] sm:text-[11px] font-semibold leading-tight">${res.text}</span>
+                    ${targetBadgeHtml}
+                `;
+            }
+            btn.className = baseClass;
+            return btn;
+        }
+
+        function inputNumber(num) {
+            if (isCleared || !selectedCell) return;
+            const stage = getStage();
+            if (num > stage.maxNum) return;
+
+            const { r, c } = selectedCell;
+            if (stage.initial[r][c] !== 0) {
+                statusBannerEl.classList.remove('hidden');
+                statusBannerEl.classList.add('flex');
+                statusBannerEl.className = 'flex w-full mb-3 px-4 py-2 rounded-xl bg-amber-950/70 border border-amber-500/40 items-center justify-center text-xs sm:text-sm';
+                statusTextEl.textContent = '最初から入っている数字は変更できません';
+                statusTextEl.className = 'text-amber-200 font-medium';
+                statusDotEl.className = 'w-2 h-2 rounded-full bg-amber-400';
+                return;
+            }
+
+            if (num === 0) {
+                if (board[r][c] !== 0) board[r][c] = 0;
+                else cellMemos[r][c].clear();
+                persistCurrentStageProgress();
+                renderAll();
+                return;
+            }
+
+            if (isMemoMode) {
+                if (board[r][c] !== 0) board[r][c] = 0;
+                if (cellMemos[r][c].has(num)) cellMemos[r][c].delete(num);
+                else cellMemos[r][c].add(num);
+            } else {
+                board[r][c] = board[r][c] === num ? 0 : num;
+            }
+            persistCurrentStageProgress();
+            renderAll();
+        }
+
+        // イベント登録
+        document.querySelectorAll('.world-card').forEach(card => {
+            card.addEventListener('click', () => {
+                startWorld(card.dataset.world, 0);
+            });
+        });
+
+        document.getElementById('backToHomeBtn').addEventListener('click', showHomeScreen);
+        document.getElementById('modalHomeBtn').addEventListener('click', showHomeScreen);
+        modeNormalBtn.addEventListener('click', () => setMemoMode(false));
+        modeMemoBtn.addEventListener('click', () => setMemoMode(true));
+
+        document.getElementById('hintBtn').addEventListener('click', () => {
+            if (isCleared) return;
+            const stage = getStage();
+            const size = stage.size;
+            let target = null;
+            if (selectedCell && stage.initial[selectedCell.r][selectedCell.c] === 0 && board[selectedCell.r][selectedCell.c] !== stage.solution[selectedCell.r][selectedCell.c]) {
+                target = selectedCell;
+            } else {
+                for (let r = 0; r < size; r++) {
+                    for (let c = 0; c < size; c++) {
+                        if (board[r][c] !== stage.solution[r][c]) {
+                            target = { r, c };
+                            break;
+                        }
+                    }
+                    if (target) break;
+                }
+            }
+            if (target) {
+                selectedCell = target;
+                board[target.r][target.c] = stage.solution[target.r][target.c];
+                persistCurrentStageProgress();
+                renderAll();
+            }
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => initGame(true));
+        document.getElementById('playAgainBtn').addEventListener('click', () => initGame(true));
+        nextStageBtn.addEventListener('click', () => {
+            const world = getWorld();
+            currentStageIndex = (currentStageIndex + 1) % world.stages.length;
+            initGame(false);
+        });
+
+        const rulesPanel = document.getElementById('rulesPanel');
+        const rulesToggleLabel = document.getElementById('rulesToggleLabel');
+        function setRulesPanelOpen(isOpen) {
+            if (isOpen) {
+                rulesPanel.classList.remove('hidden');
+                rulesToggleLabel.textContent = '閉じる';
+            } else {
+                rulesPanel.classList.add('hidden');
+                rulesToggleLabel.textContent = 'ルール説明';
+            }
+        }
+        document.getElementById('rulesToggleBtn').addEventListener('click', () => {
+            setRulesPanelOpen(rulesPanel.classList.contains('hidden'));
+        });
+        document.getElementById('closeRulesBtn').addEventListener('click', () => {
+            setRulesPanelOpen(false);
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (gameScreenEl.classList.contains('hidden') || isCleared) return;
+            const stage = getStage();
+            const size = stage.size;
+            if (e.key === 'm' || e.key === 'M' || e.key === ' ') {
+                e.preventDefault();
+                setMemoMode(!isMemoMode);
+            } else if (e.key >= '1' && e.key <= '9') {
+                inputNumber(parseInt(e.key, 10));
+            } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+                inputNumber(0);
+            } else if (selectedCell) {
+                let { r, c } = selectedCell;
+                if (e.key === 'ArrowUp') r = (r + size - 1) % size;
+                else if (e.key === 'ArrowDown') r = (r + 1) % size;
+                else if (e.key === 'ArrowLeft') c = (c + size - 1) % size;
+                else if (e.key === 'ArrowRight') c = (c + 1) % size;
+                else return;
+                e.preventDefault();
+                selectedCell = { r, c };
+                renderAll();
+            }
+        });
+
+        // 起動時はトップのワールド選択画面を表示し、保存データを読み込む
+        showHomeScreen();
+        initCloudStorage();
+    </script>
+</body>
+</html>
