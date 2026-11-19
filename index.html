@@ -4,16 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>無理数独</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='28' fill='%230f172a'/%3E%3Cg stroke='%23475569' stroke-width='2' fill='%231e293b'%3E%3Crect x='42' y='34' width='68' height='68' rx='10'/%3E%3Cline x1='64.6' y1='34' x2='64.6' y2='102'/%3E%3Cline x1='87.3' y1='34' x2='87.3' y2='102'/%3E%3Cline x1='42' y1='56.6' x2='110' y2='56.6'/%3E%3Cline x1='42' y1='79.3' x2='110' y2='79.3'/%3E%3C/g%3E%3Cpath d='M 14 70 L 24 70 L 32 104 L 39 24 L 114 24 L 114 32' fill='none' stroke='%2334d399' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link id="tabIconLink" rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='28' fill='%230f172a'/%3E%3Cg stroke='%23475569' stroke-width='2' fill='%231e293b'%3E%3Crect x='42' y='34' width='68' height='68' rx='10'/%3E%3Cline x1='64.6' y1='34' x2='64.6' y2='102'/%3E%3Cline x1='87.3' y1='34' x2='87.3' y2='102'/%3E%3Cline x1='42' y1='56.6' x2='110' y2='56.6'/%3E%3Cline x1='42' y1='79.3' x2='110' y2='79.3'/%3E%3C/g%3E%3Cpath d='M 14 70 L 24 70 L 32 104 L 39 24 L 114 24 L 114 32' fill='none' stroke='%2334d399' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
     <meta property="og:title" content="無理数独">
     <meta property="og:description" content="√・log・sin/cos の全18ステージ収録！巨大な数学記号を外して完全有理化・整数化を目指す新感覚数学パズル">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://da-hu-da.github.io/murisudoku/">
-    <meta id="ogImageMeta" property="og:image" content="">
+    <meta id="ogImageMeta" property="og:image" content="https://da-hu-da.github.io/murisudoku/ogp.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="無理数独">
     <meta name="twitter:description" content="√・log・sin/cos の全18ステージ収録！巨大な数学記号を外して完全有理化・整数化を目指す新感覚数学パズル">
-    <meta id="twitterImageMeta" name="twitter:image" content="">
+    <meta id="twitterImageMeta" name="twitter:image" content="https://da-hu-da.github.io/murisudoku/ogp.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
@@ -133,7 +136,7 @@
                     <span>シェア</span>
                 </button>
             </div>
-            <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+            <h1 id="mainTitleLogo" class="text-4xl sm:text-6xl font-black tracking-tight text-white flex items-center justify-center gap-2">
                 <span>無理数独</span>
             </h1>
             <p class="text-slate-300 text-xs sm:text-base mt-2.5 max-w-xl mx-auto leading-relaxed">
@@ -412,20 +415,10 @@
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         /**
-         * 有理数角度の定義テーブル（sin / cos ワールド用：1マス = 5° 刻み）
-         */
-        const RATIONAL_TRIG = {
-            sin: { 0: '0', 30: '1/2', 90: '1', 150: '1/2', 180: '0', 210: '-1/2', 270: '-1', 330: '-1/2', 360: '0' },
-            cos: { 0: '1', 60: '1/2', 90: '0', 120: '-1/2', 180: '-1', 240: '-1/2', 270: '0', 300: '1/2', 360: '1' }
-        };
-
-        /**
-         * 全3ワールド × 各6ステージ ＝ 計18ステージ定義（すべて唯一解・厳密判定検証済み）
+         * 全3ワールド × 各6ステージ（計18ステージ）の定義
+         * すべてのステージが厳密な唯一解かつ有理数・整数条件のみでクリア可能になるよう構成
          */
         const WORLDS = {
-            // =================================================================
-            // WORLD 1: √ ステージ（6ステージ）
-            // =================================================================
             root: {
                 id: 'root',
                 name: '√ ステージ',
@@ -435,11 +428,11 @@
                 stages: [
                     {
                         id: 'root-4-easy',
-                        group: 'A',
                         size: 4,
                         blockRows: 2,
                         blockCols: 2,
                         maxNum: 9,
+                        group: 'A',
                         diffLabel: 'イージー',
                         title: '√ · 4×4 イージー',
                         validTargets: [16, 25],
@@ -458,11 +451,11 @@
                     },
                     {
                         id: 'root-4-normal',
-                        group: 'A',
                         size: 4,
                         blockRows: 2,
                         blockCols: 2,
                         maxNum: 9,
+                        group: 'A',
                         diffLabel: 'ノーマル',
                         title: '√ · 4×4 ノーマル',
                         validTargets: [16, 25],
@@ -481,11 +474,11 @@
                     },
                     {
                         id: 'root-4-hard',
-                        group: 'A',
                         size: 4,
                         blockRows: 2,
                         blockCols: 2,
                         maxNum: 9,
+                        group: 'A',
                         diffLabel: 'ハード',
                         title: '√ · 4×4 ハード',
                         validTargets: [16, 25],
@@ -504,11 +497,11 @@
                     },
                     {
                         id: 'root-6-easy',
-                        group: 'B',
                         size: 6,
                         blockRows: 2,
                         blockCols: 3,
                         maxNum: 9,
+                        group: 'B',
                         diffLabel: 'イージー',
                         title: '√ · 6×6 イージー',
                         validTargets: [25, 36],
@@ -531,11 +524,11 @@
                     },
                     {
                         id: 'root-6-normal',
-                        group: 'B',
                         size: 6,
                         blockRows: 2,
                         blockCols: 3,
                         maxNum: 9,
+                        group: 'B',
                         diffLabel: 'ノーマル',
                         title: '√ · 6×6 ノーマル',
                         validTargets: [25, 36],
@@ -558,11 +551,11 @@
                     },
                     {
                         id: 'root-6-hard',
-                        group: 'B',
                         size: 6,
                         blockRows: 2,
                         blockCols: 3,
                         maxNum: 9,
+                        group: 'B',
                         diffLabel: 'ハード',
                         title: '√ · 6×6 ハード',
                         validTargets: [25, 36],
@@ -585,10 +578,6 @@
                     }
                 ]
             },
-
-            // =================================================================
-            // WORLD 2: log ステージ（6ステージ）
-            // =================================================================
             log: {
                 id: 'log',
                 name: 'log ステージ',
@@ -597,15 +586,16 @@
                 groupBLabel: '底 3',
                 stages: [
                     {
-                        id: 'log-base2-easy',
-                        group: 'A',
+                        id: 'log-2-easy',
                         base: 2,
                         baseSub: '₂',
                         size: 4,
                         blockRows: 2,
                         blockCols: 2,
                         maxNum: 9,
+                        group: 'A',
                         diffLabel: 'イージー',
+                        subLabel: '1〜9',
                         title: 'log₂ · イージー (1〜9)',
                         validTargets: [16],
                         solution: [
@@ -622,15 +612,16 @@
                         ]
                     },
                     {
-                        id: 'log-base2-normal',
-                        group: 'A',
+                        id: 'log-2-normal',
                         base: 2,
                         baseSub: '₂',
                         size: 4,
                         blockRows: 2,
                         blockCols: 2,
                         maxNum: 12,
+                        group: 'A',
                         diffLabel: 'ノーマル',
+                        subLabel: '1〜12',
                         title: 'log₂ · ノーマル (1〜12)',
                         validTargets: [16, 32],
                         solution: [
@@ -647,15 +638,16 @@
                         ]
                     },
                     {
-                        id: 'log-base2-hard',
-                        group: 'A',
+                        id: 'log-2-hard',
                         base: 2,
                         baseSub: '₂',
                         size: 6,
                         blockRows: 2,
                         blockCols: 3,
                         maxNum: 12,
+                        group: 'A',
                         diffLabel: 'ハード',
+                        subLabel: '1〜12',
                         title: 'log₂ · ハード (1〜12)',
                         validTargets: [32],
                         solution: [
@@ -676,15 +668,16 @@
                         ]
                     },
                     {
-                        id: 'log-base3-easy',
-                        group: 'B',
+                        id: 'log-3-easy',
                         base: 3,
                         baseSub: '₃',
                         size: 4,
                         blockRows: 2,
                         blockCols: 2,
                         maxNum: 9,
+                        group: 'B',
                         diffLabel: 'イージー',
+                        subLabel: '1〜9',
                         title: 'log₃ · イージー (1〜9)',
                         validTargets: [27],
                         solution: [
@@ -701,15 +694,16 @@
                         ]
                     },
                     {
-                        id: 'log-base3-normal',
-                        group: 'B',
+                        id: 'log-3-normal',
                         base: 3,
                         baseSub: '₃',
                         size: 6,
                         blockRows: 2,
                         blockCols: 3,
                         maxNum: 12,
+                        group: 'B',
                         diffLabel: 'ノーマル',
+                        subLabel: '1〜12',
                         title: 'log₃ · ノーマル (1〜12)',
                         validTargets: [27],
                         solution: [
@@ -730,15 +724,16 @@
                         ]
                     },
                     {
-                        id: 'log-base3-hard',
-                        group: 'B',
+                        id: 'log-3-hard',
                         base: 3,
                         baseSub: '₃',
                         size: 6,
                         blockRows: 2,
                         blockCols: 3,
                         maxNum: 12,
+                        group: 'B',
                         diffLabel: 'ハード',
+                        subLabel: '1〜12',
                         title: 'log₃ · ハード (1〜12)',
                         validTargets: [27],
                         solution: [
@@ -760,10 +755,6 @@
                     }
                 ]
             },
-
-            // =================================================================
-            // WORLD 3: 三角関数 sin / cos ステージ（6ステージ）
-            // =================================================================
             trig: {
                 id: 'trig',
                 name: 'sin / cos ステージ',
@@ -773,12 +764,12 @@
                 stages: [
                     {
                         id: 'trig-4-easy',
-                        group: 'A',
                         func: 'sin',
                         size: 4,
                         blockRows: 2,
                         blockCols: 2,
                         maxNum: 9,
+                        group: 'A',
                         diffLabel: 'イージー',
                         subLabel: 'sin',
                         title: '4×4 · イージー (sin)',
@@ -798,12 +789,12 @@
                     },
                     {
                         id: 'trig-4-normal',
-                        group: 'A',
                         func: 'cos',
                         size: 4,
                         blockRows: 2,
                         blockCols: 2,
                         maxNum: 9,
+                        group: 'A',
                         diffLabel: 'ノーマル',
                         subLabel: 'cos',
                         title: '4×4 · ノーマル (cos)',
@@ -823,12 +814,12 @@
                     },
                     {
                         id: 'trig-4-hard',
-                        group: 'A',
                         func: 'cos',
                         size: 4,
                         blockRows: 2,
                         blockCols: 2,
                         maxNum: 9,
+                        group: 'A',
                         diffLabel: 'ハード',
                         subLabel: 'cos',
                         title: '4×4 · ハード (cos)',
@@ -848,12 +839,12 @@
                     },
                     {
                         id: 'trig-6-easy',
-                        group: 'B',
                         func: 'cos',
                         size: 6,
                         blockRows: 2,
                         blockCols: 3,
                         maxNum: 9,
+                        group: 'B',
                         diffLabel: 'イージー',
                         subLabel: 'cos',
                         title: '6×6 · イージー (cos)',
@@ -877,12 +868,12 @@
                     },
                     {
                         id: 'trig-6-normal',
-                        group: 'B',
                         func: 'sin',
                         size: 6,
                         blockRows: 2,
                         blockCols: 3,
                         maxNum: 9,
+                        group: 'B',
                         diffLabel: 'ノーマル',
                         subLabel: 'sin',
                         title: '6×6 · ノーマル (sin)',
@@ -906,12 +897,12 @@
                     },
                     {
                         id: 'trig-6-hard',
-                        group: 'B',
                         func: 'sin',
                         size: 6,
                         blockRows: 2,
                         blockCols: 3,
                         maxNum: 9,
+                        group: 'B',
                         diffLabel: 'ハード',
                         subLabel: 'sin',
                         title: '6×6 · ハード (sin)',
@@ -937,44 +928,43 @@
             }
         };
 
-        // テーマカラー定義
         const THEME = {
             indigo: {
                 badge: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-                activeTab: 'bg-indigo-600 text-white shadow',
                 gridBorder: 'border-indigo-400/50',
                 blockBorderR: 'border-r-2 border-r-indigo-400/70 ',
                 blockBorderB: 'border-b-2 border-b-indigo-400/70 ',
-                sameNumBg: 'bg-indigo-900/50 ',
                 selectedBg: 'bg-indigo-600/40 ring-2 ring-inset ring-indigo-400 ',
+                sameNumBg: 'bg-indigo-900/50 ',
                 userText: 'text-cyan-300 font-bold ',
+                activeTab: 'bg-indigo-600 text-white shadow',
                 numHover: 'hover:bg-indigo-600'
             },
             cyan: {
                 badge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-                activeTab: 'bg-cyan-600 text-white shadow',
                 gridBorder: 'border-cyan-400/50',
                 blockBorderR: 'border-r-2 border-r-cyan-400/70 ',
                 blockBorderB: 'border-b-2 border-b-cyan-400/70 ',
-                sameNumBg: 'bg-cyan-900/50 ',
                 selectedBg: 'bg-cyan-600/40 ring-2 ring-inset ring-cyan-400 ',
+                sameNumBg: 'bg-cyan-900/50 ',
                 userText: 'text-cyan-300 font-bold ',
+                activeTab: 'bg-cyan-600 text-white shadow',
                 numHover: 'hover:bg-cyan-600'
             },
             amber: {
                 badge: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-                activeTab: 'bg-amber-600 text-white shadow',
                 gridBorder: 'border-amber-400/50',
                 blockBorderR: 'border-r-2 border-r-amber-400/70 ',
                 blockBorderB: 'border-b-2 border-b-amber-400/70 ',
-                sameNumBg: 'bg-amber-900/50 ',
                 selectedBg: 'bg-amber-600/40 ring-2 ring-inset ring-amber-400 ',
+                sameNumBg: 'bg-amber-900/50 ',
                 userText: 'text-amber-300 font-bold ',
+                activeTab: 'bg-amber-600 text-white shadow',
                 numHover: 'hover:bg-amber-600'
             }
         };
 
-        // ゲーム状態
+        // プレイ状態・セーブ状態
         let currentWorldId = 'root';
         let currentStageIndex = 0;
         let board = [];
@@ -984,29 +974,33 @@
         let selectedCell = { r: 0, c: 0 };
         let isCleared = false;
 
-        // 永続セーブデータ構造（入力状況とクリア状況を保持）
         let saveState = {
-            clearedStages: {}, // { [stageId]: true }
-            progress: {}       // { [stageId]: { board, cellMemos, targetMemos } }
+            clearedStages: {},
+            progress: {}
         };
-
-        // クラウド永続化（Firestore）状態
         let db = null;
         let currentUser = null;
         let saveTimer = null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'irrational-sudoku-v1';
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'irrational-sudoku';
 
         function getSaveDocRef(uid) {
-            return doc(db, 'artifacts', appId, 'users', uid, 'gameData', 'progress');
+            return doc(db, 'artifacts', appId, 'users', uid, 'saveData', 'main');
         }
 
         async function initCloudStorage() {
             try {
-                if (typeof __firebase_config === 'undefined') return;
+                if (typeof __firebase_config === 'undefined' || !__firebase_config) return;
                 const firebaseConfig = JSON.parse(__firebase_config);
                 const app = initializeApp(firebaseConfig);
                 const auth = getAuth(app);
                 db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
 
                 onAuthStateChanged(auth, async (user) => {
                     if (!user) return;
@@ -1015,34 +1009,37 @@
                         const snap = await getDoc(getSaveDocRef(user.uid));
                         if (snap.exists()) {
                             const data = snap.data();
-                            if (data.clearedStages) {
-                                saveState.clearedStages = { ...saveState.clearedStages, ...data.clearedStages };
-                            }
-                            if (data.progressJson) {
-                                const parsed = JSON.parse(data.progressJson);
-                                saveState.progress = { ...saveState.progress, ...parsed };
-                            } else if (data.progress) {
-                                saveState.progress = { ...saveState.progress, ...data.progress };
+                            saveState.clearedStages = data.clearedStages && typeof data.clearedStages === 'object' ? data.clearedStages : {};
+                            if (typeof data.progressJson === 'string' && data.progressJson) {
+                                try {
+                                    saveState.progress = JSON.parse(data.progressJson);
+                                } catch (_) {
+                                    saveState.progress = {};
+                                }
+                            } else if (data.progress && typeof data.progress === 'object') {
+                                saveState.progress = data.progress;
                             }
                             renderHomeWorldCards();
                             if (!gameScreenEl.classList.contains('hidden')) {
                                 loadStageState(false);
                             }
                         }
-                    } catch (e) {
-                        console.error('Load progress error:', e);
+                    } catch (err) {
+                        console.error('Load save data error:', err);
                     }
                 });
-
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (e) {
-                console.error('Firebase init skipped:', e);
+            } catch (err) {
+                console.error('Cloud storage init error:', err);
             }
         }
+
+        /**
+         * 有理数角度の定義テーブル（sin / cos ワールド用：1マス = 5° 刻み）
+         */
+        const RATIONAL_TRIG = {
+            sin: { 0: '0', 30: '1/2', 90: '1', 150: '1/2', 180: '0', 210: '-1/2', 270: '-1', 330: '-1/2', 360: '0' },
+            cos: { 0: '1', 60: '1/2', 90: '0', 120: '-1/2', 180: '-1', 240: '-1/2', 270: '0', 300: '1/2', 360: '1' }
+        };
 
         function persistSaveState() {
             if (!db || !currentUser) return;
@@ -2001,125 +1998,6 @@
         const SHARE_DESC = '盤面全体を覆う巨大な数学記号（√・log・sin/cos）を外せ！行・列・ブロックすべての和を有理数・整数にする新感覚数学パズル';
         let currentShareStageTitle = null;
 
-        /**
-         * リンク共有用のサムネイル画像（数独盤面に巨大なルート記号 √ がかかったロゴ）を生成しメタタグへ設定
-         */
-        function generateThumbnailMetadata() {
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = 1200;
-                canvas.height = 630;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return;
-
-                // 背景グラデーション
-                const bgGrad = ctx.createLinearGradient(0, 0, 1200, 630);
-                bgGrad.addColorStop(0, '#020617');
-                bgGrad.addColorStop(0.5, '#0f172a');
-                bgGrad.addColorStop(1, '#1e1b4b');
-                ctx.fillStyle = bgGrad;
-                ctx.fillRect(0, 0, 1200, 630);
-
-                // 背景グリッド装飾
-                ctx.strokeStyle = 'rgba(99, 102, 241, 0.08)';
-                ctx.lineWidth = 1;
-                for (let x = 0; x <= 1200; x += 60) {
-                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 630); ctx.stroke();
-                }
-                for (let y = 0; y <= 630; y += 60) {
-                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1200, y); ctx.stroke();
-                }
-
-                // 中央の数独盤面（4×4）
-                const gridSize = 310;
-                const gx = 485;
-                const gy = 185;
-                const cell = gridSize / 4;
-
-                ctx.save();
-                ctx.shadowColor = 'rgba(52, 211, 153, 0.25)';
-                ctx.shadowBlur = 35;
-                ctx.fillStyle = '#0f172a';
-                ctx.beginPath();
-                ctx.roundRect(gx, gy, gridSize, gridSize, 24);
-                ctx.fill();
-                ctx.restore();
-
-                // マス目と数字
-                const sampleNums = [
-                    [1, 2, 4, 9],
-                    [4, 9, 1, 2],
-                    [2, 1, 9, 4],
-                    [9, 4, 2, 1]
-                ];
-                ctx.font = 'bold 34px "JetBrains Mono", monospace';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                for (let r = 0; r < 4; r++) {
-                    for (let c = 0; c < 4; c++) {
-                        const cx = gx + c * cell;
-                        const cy = gy + r * cell;
-                        ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(30, 41, 59, 0.85)' : 'rgba(15, 23, 42, 0.9)';
-                        ctx.fillRect(cx + 2, cy + 2, cell - 4, cell - 4);
-                        ctx.fillStyle = (r === c || r + c === 3) ? '#6ee7b7' : '#cbd5e1';
-                        ctx.fillText(String(sampleNums[r][c]), cx + cell / 2, cy + cell / 2 + 2);
-                    }
-                }
-
-                // 盤面の内枠線・太枠線
-                ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
-                ctx.lineWidth = 2;
-                for (let i = 1; i < 4; i++) {
-                    ctx.beginPath(); ctx.moveTo(gx + i * cell, gy); ctx.lineTo(gx + i * cell, gy + gridSize); ctx.stroke();
-                    ctx.beginPath(); ctx.moveTo(gx, gy + i * cell); ctx.lineTo(gx + gridSize, gy + i * cell); ctx.stroke();
-                }
-                ctx.strokeStyle = '#818cf8';
-                ctx.lineWidth = 4;
-                ctx.beginPath(); ctx.moveTo(gx + cell * 2, gy); ctx.lineTo(gx + cell * 2, gy + gridSize); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(gx, gy + cell * 2); ctx.lineTo(gx + gridSize, gy + cell * 2); ctx.stroke();
-                ctx.beginPath();
-                ctx.roundRect(gx, gy, gridSize, gridSize, 24);
-                ctx.stroke();
-
-                // 数独にかぶさる巨大なルート記号 √
-                const rootGrad = ctx.createLinearGradient(370, 140, 825, 140);
-                rootGrad.addColorStop(0, '#818cf8');
-                rootGrad.addColorStop(0.5, '#34d399');
-                rootGrad.addColorStop(1, '#38bdf8');
-
-                ctx.save();
-                ctx.shadowColor = 'rgba(52, 211, 153, 0.65)';
-                ctx.shadowBlur = 24;
-                ctx.strokeStyle = rootGrad;
-                ctx.lineWidth = 16;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.beginPath();
-                ctx.moveTo(375, 345);
-                ctx.lineTo(410, 345);
-                ctx.lineTo(445, 495);
-                ctx.lineTo(472, 152);
-                ctx.lineTo(815, 152);
-                ctx.lineTo(815, 178);
-                ctx.stroke();
-                ctx.restore();
-
-                // タイトルロゴテキスト
-                ctx.fillStyle = '#f8fafc';
-                ctx.font = '900 54px "Noto Sans JP", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('無理数独', 600, 565);
-
-                const dataUrl = canvas.toDataURL('image/png');
-                const ogImg = document.getElementById('ogImageMeta');
-                const twImg = document.getElementById('twitterImageMeta');
-                if (ogImg) ogImg.setAttribute('content', dataUrl);
-                if (twImg) twImg.setAttribute('content', dataUrl);
-            } catch (e) {
-                console.error('Thumbnail generation skipped:', e);
-            }
-        }
-
         function buildShareText(stageTitle = null) {
             if (stageTitle) {
                 return `『${SHARE_TITLE}』の【${stageTitle}】をクリアしました！\n${SHARE_DESC}\n${SHARE_URL}`;
@@ -2268,8 +2146,7 @@
             }
         });
 
-        // 起動時はサムネイルメタデータを生成し、トップのワールド選択画面を表示
-        generateThumbnailMetadata();
+        // 起動時はトップのワールド選択画面を表示
         showHomeScreen();
         initCloudStorage();
     </script>
